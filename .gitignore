@@ -1,0 +1,95 @@
+# ---------------------------------------------------------------------------
+# AI agent tooling (vendored from addyosmani/agent-skills — re-syncable, not ours)
+# ---------------------------------------------------------------------------
+# The skill bodies are upstream copies; keeping them out of history avoids
+# vendoring ~3k lines of third-party markdown. Re-install with:
+#   npx skills add addyosmani/agent-skills --skill <name>
+# Hand-written project rules under .cursor/rules/ ARE tracked on purpose.
+.claude/skills/
+.claude/references/
+.cursor/skills/
+.cursor/references/
+
+# Local agent state / machine-specific settings
+.claude/settings.local.json
+.claude/local/
+.cursor/mcp.json
+
+# ---------------------------------------------------------------------------
+# Secrets & signing — never commit
+# ---------------------------------------------------------------------------
+local.properties
+keystore.properties
+signing.properties
+*.jks
+*.keystore
+*.p12
+*.pepk
+release/
+secrets.properties
+google-services.json
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Gradle / build output
+# ---------------------------------------------------------------------------
+.gradle/
+build/
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+gradle-app.setting
+.gradletasknamecache
+
+# Android build artifacts
+*.apk
+*.aab
+*.ap_
+*.aar
+*.dex
+*.class
+output.json
+captures/
+.externalNativeBuild/
+.cxx/
+lint-results*.html
+lint-results*.xml
+
+# Room / KSP / kapt generated sources
+.kotlin/
+app/schemas/*.tmp
+
+# ---------------------------------------------------------------------------
+# Android Studio / IntelliJ
+# ---------------------------------------------------------------------------
+*.iml
+.idea/*
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+.navigation/
+.settings/
+.project
+.classpath
+*.hprof
+freeline.py
+freeline/
+freeline_project_description.json
+
+# ---------------------------------------------------------------------------
+# Test & coverage reports
+# ---------------------------------------------------------------------------
+*/reports/
+jacoco.exec
+test-results/
+
+# ---------------------------------------------------------------------------
+# OS noise
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+*~
+*.swp

@@ -1,0 +1,18 @@
+---
+description: Route non-trivial work through the project skills in .cursor/skills
+alwaysApply: true
+---
+
+Before starting non-trivial technical work:
+
+1. Route via `.cursor/skills/using-agent-skills/SKILL.md`.
+2. Read and follow the matching skill at `.cursor/skills/<name>/SKILL.md` in full.
+3. Open the linked checklist under `.cursor/references/` when a skill points to one.
+4. Prefer the project skill over improvising. The user should not have to say
+   "read the skill" each time.
+
+Only these skills are installed: `using-agent-skills`, `spec-driven-development`,
+`planning-and-task-breakdown`, `incremental-implementation`,
+`source-driven-development`, `test-driven-development`,
+`debugging-and-error-recovery`, `code-review-and-quality`,
+`git-workflow-and-versioning`, `ci-cd-and-automation`.

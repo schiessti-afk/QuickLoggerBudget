@@ -1,0 +1,26 @@
+---
+description: QuickLogger stack and architecture non-negotiables
+alwaysApply: true
+---
+
+QuickLogger is an offline-first Android expense logger. See `docs/IDEA.md` and
+`docs/ARCHITECTURE.md` for the full context.
+
+**Stack:** Kotlin, Jetpack Compose + Material 3, Room (KSP), Coroutines/Flow,
+Clean Architecture + MVVM with unidirectional data flow.
+
+**Non-negotiables:**
+
+- No network calls, no cloud sync, no analytics or telemetry. Offline is a
+  product requirement, not a default.
+- Layer direction is one-way: `presentation → domain ← data`. The data
+  layer implements domain interfaces. The domain layer is pure Kotlin —
+  no Android imports, no Room types, no Compose types.
+- UI state is exposed as `StateFlow`; the UI sends events up, never mutates state
+  directly.
+- Receipt images go to private app storage (`context.filesDir`), never to shared
+  media or the device gallery. Files leave the app only through `FileProvider`.
+- Adding a taps-to-log step to the primary flow needs an explicit reason —
+  logging an expense must stay a sub-two-second action.
+- Never commit the release keystore, `keystore.properties`, or signing passwords.
+  They belong in GitHub Actions secrets.
