@@ -1,6 +1,6 @@
 # 💡 IDEA.md — QuickLogger
 
-This file is the **product** source of truth (why, who, what). How it is built lives in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). How it looks lives in [`docs/DESIGN.md`](DESIGN.md). If the docs disagree on mechanics, architecture wins; if they disagree on visuals, design wins; if they disagree on product intent, this file wins and the others must be updated.
+This file is the **product** source of truth (why, who, what). How it is built lives in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). How it looks lives in [`docs/DESIGN.md`](DESIGN.md). How implementation is sequenced lives in [`docs/Sprint.md`](Sprint.md). If the docs disagree on mechanics, architecture wins; if they disagree on visuals, design wins; if they disagree on product intent, this file wins and the others must be updated.
 
 ## 1. Executive Summary
 **QuickLogger** is an ultra-minimalist, offline-first Android application designed for one primary objective: **reducing friction to zero when recording everyday cash purchases and physical receipts.**

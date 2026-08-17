@@ -646,8 +646,9 @@ Decisions below are in force until contradicted. Correct them before implementat
 16. No `Category.isDefault` column. Seed-if-empty plus `isProtected` on `Other` is enough.
 17. License is **MIT**, copyright Micha Schiess.
 18. CSV file name is `quicklogger-YYYY-MM-DD.csv` using the **export** date, including for week/month exports.
+19. GitHub clone URL is `https://github.com/schiessti-afk/QuickLoggerBudget.git`.
 
 ### Still open (non-blocking)
 
-- **GitHub clone URL** — README uses `https://github.com/<owner>/QuickLoggerBudget.git`.
+None.
 )

@@ -4,7 +4,7 @@ This file is the **visual** source of truth (look, feel, motion, generated art).
 
 If this file disagrees with IDEA on product intent, IDEA wins. If it disagrees with ARCHITECTURE on screens, navigation, or taps on the log path, ARCHITECTURE wins. If it disagrees with either on *how it looks*, this file wins and the others stay silent on visuals.
 
-**Status:** visual direction is decided. Tokens and asset prompts below are in force. The brand seed hex is an assumption until you override it.
+**Status:** visual direction is decided. Brand seed `#9A4A32` is confirmed. Generated masters live in [`docs/assets/`](assets/). Copy them into `app/src/main/res/` when the Gradle module exists.
 
 ---
 
@@ -118,9 +118,9 @@ Share sheet, camera, and photo picker are OS UI. The app only owns the caption a
 
 ## 5. Color, type, and motion
 
-### 5.1 Brand seed (assumption)
+### 5.1 Brand seed
 
-Until you supply a different hex, the Material 3 seed is **sealing-wax** `#9A4A32`.
+Confirmed. The Material 3 seed is **sealing-wax** `#9A4A32`.
 
 | Role | Hex | Use |
 | --- | --- | --- |
@@ -197,7 +197,9 @@ Custom (user-created) categories: Other accent + Other pictogram.
 
 ## 8. Assets to generate
 
-Generate **only** the set below. One family: warm stationery, even ink line, cream/wax/ink palette, no photoreal people, no text baked into images. Ship into `app/src/main/res/` (and README) as listed.
+Generate **only** the set below. One family: warm stationery, even ink line, cream/wax/ink palette, no photoreal people, no text baked into images.
+
+**Masters (generated):** [`docs/assets/`](assets/). Raster PNGs are the source. When `:app` exists, trace pictograms and the toolbar glyph to XML vectors in `res/drawable/`, and slice the launcher into adaptive mipmaps. The GitHub still stays in this folder and in the README — it is not shipped in the APK.
 
 Shared prompt fragment (prepend to every asset):
 
@@ -214,6 +216,7 @@ no drop shadows, no UI chrome, no letters unless the prompt asks for a wordmark.
 | **Why** | The only brand the user sees before the keyboard. Must read at 48 dp and on a circular mask. |
 | **Deliverables** | Foreground: abstract folded receipt glyph (safe zone). Background: cream `#F6F1E8` or a slightly deeper paper `#EFE7D8`. Optional monochrome (ink on transparent) for themed icons. Adaptive mipmaps. |
 | **Do not** | Tiny receipt photos, unreadably small “QL” ligatures, a full wordmark, a wallet or bank building. |
+| **File** | [`docs/assets/launcher-receipt-fold.png`](assets/launcher-receipt-fold.png) |
 | **Prompt** | `App launcher icon, adaptive Android, centered abstract folded paper receipt (one dog-eared rectangle with a single crease and two or three tally lines), warm stationery ink-line, cream background #F6F1E8, sealing-wax #9A4A32 stroke, generous padding for circular crop, 1024×1024, flat vector, no text, no coin, no card reader.` |
 
 ### 8.2 Wordmark / in-app mark (top bar)
@@ -223,6 +226,7 @@ no drop shadows, no UI chrome, no letters unless the prompt asks for a wordmark.
 | **Why** | Ties Log’s thin top bar to the launcher without a second art style. |
 | **Deliverables** | The same receipt-fold glyph as 8.1, simplified to 24 dp. Single-color `currentColor` / ink. XML vector. Optional tiny “QuickLogger” is **system type**, not drawn in the asset. |
 | **Do not** | A wide logo that crowds out the History action. |
+| **File** | [`docs/assets/toolbar-receipt-glyph.png`](assets/toolbar-receipt-glyph.png) |
 | **Prompt** | `Minimal 24 dp Android toolbar glyph: the same folded receipt as the launcher, single color (black on transparent), high-contrast silhouette, no wordmark, no tagline, even ink stroke, optical size 24.` |
 
 ### 8.3 Empty History illustration
@@ -232,6 +236,7 @@ no drop shadows, no UI chrome, no letters unless the prompt asks for a wordmark.
 | **Why** | The only place a picture can add warmth without slowing logging. |
 | **Deliverables** | One light illustration (~320 dp wide), lots of paper-negative space. Vector or PNG with cream already in the scene. Copy lives in `strings.xml`, not in the image. |
 | **Do not** | Checklists, coins raining, 3D clay, dark variant (light-only app). |
+| **File** | [`docs/assets/empty-history.png`](assets/empty-history.png) |
 | **Prompt** | `Quiet empty-state illustration: a small folded paper receipt lying on a cream desk next to a thin closed ledger, warm stationery, ink-line, palette #F6F1E8 #9A4A32 #2A241F, lots of whitespace, no people, no text, no UI chrome, suitable for an Android empty list.` |
 
 ### 8.4 README / GitHub social preview (repo only)
@@ -241,6 +246,7 @@ no drop shadows, no UI chrome, no letters unless the prompt asks for a wordmark.
 | **Why** | Sideloaded APK still needs a recognizable storefront on GitHub. Not shipped in the APK. |
 | **Deliverables** | One 1280×640 still: phone frame with Log, huge cream canvas, amount focused, six chips with pictograms. No fake store badges. |
 | **Do not** | Invent extra tabs, a cloud-sync banner, or a dark theme. |
+| **File** | [`docs/assets/github-social-preview.png`](assets/github-social-preview.png) |
 | **Prompt** | `Product still for GitHub: Android phone showing a minimal cream-paper expense logger, huge currency amount focused, six stationery category chips with small ink pictograms, warm Material UI, sealing-wax save button, no smiling humans, no cloud icons, 1280×640.` |
 
 ### 8.5 Category pictograms (six)
@@ -251,6 +257,7 @@ no drop shadows, no UI chrome, no letters unless the prompt asks for a wordmark.
 | **Deliverables** | Six XML vectors, 24×24 viewport, **single color** (they are tinted at runtime to the category accent). Optical size 18–20 dp. Matching stroke. |
 | **Do not** | Filled colorful stickers, emoji, brand logos, letters. |
 | **Shared prompt** | `Android vector icon 24×24, single-color ink line, even stroke, rounded caps, no fill (or minimal), centered, transparent background, stationery, no text.` |
+| **Files** | [`ic-category-food.png`](assets/ic-category-food.png) · [`ic-category-transport.png`](assets/ic-category-transport.png) · [`ic-category-supplies.png`](assets/ic-category-supplies.png) · [`ic-category-utilities.png`](assets/ic-category-utilities.png) · [`ic-category-personal.png`](assets/ic-category-personal.png) · [`ic-category-other.png`](assets/ic-category-other.png) |
 | **Per icon** | **Food:** coffee cup on a saucer, tiny steam curl. **Transport:** front three-quarter of a small city bus. **Supplies:** open cardboard carton. **Utilities:** light bulb with a simple filament. **Personal:** tote bag with two handles. **Other:** asterisk centered in a rounded square. |
 
 Custom user categories reuse **Other**.
@@ -284,10 +291,10 @@ This design is doing its job when:
 8. Amount type: platform M3 (not asked; assumed).
 9. No Figma required for MVP.
 10. Beauty must not add taps, routes, or a splash delay.
+11. Brand seed is `#9A4A32` (confirmed).
+12. Raster masters for §8 are in `docs/assets/` (2026-08-17).
 
 ### Still open
 
-- **Exact seed hex.** Assumed `#9A4A32` (sealing-wax). Send a different hex and §5.1 / asset prompts update.
-- **Amount typeface.** Assumed platform. Say if you want a bundled tabular font in `res/font`.
-
-→ Correct those two if they are wrong. Asset generation uses the prompts in §8 as written until then.
+- **Amount typeface.** Assumed platform M3. Say if you want a bundled tabular font in `res/font`.
+- **Vector trace.** Pictograms and the toolbar glyph still need XML `VectorDrawable`s when `:app` is created; PNGs are not the runtime format.

@@ -1,5 +1,7 @@
 # QuickLogger
 
+![QuickLogger Log screen](docs/assets/github-social-preview.png)
+
 **Offline-first Android expense logger** — by Micha Schiess
 
 Open the app, type an amount, tap a category, optionally snap a receipt, and save. That path stays under two seconds. Sharing is an extra step, not part of that budget.
@@ -104,9 +106,14 @@ Product, architecture, and visual language are specified before implementation. 
 
 1. [Product idea](docs/IDEA.md) — why, who, what
 2. [Architecture](docs/ARCHITECTURE.md) — layers, data flow, platform rules
-3. [Design](docs/DESIGN.md) — visual language (Material 3 until a direction is locked)
+3. [Design](docs/DESIGN.md) — warm stationery, seed `#9A4A32`, art in [`docs/assets/`](docs/assets/)
+4. [Sprints](docs/Sprint.md) — implementation sequence and exit criteria (no calendar)
 
-Clone this repository and open it in Android Studio (latest stable) with JDK 17.
+```bash
+git clone https://github.com/schiessti-afk/QuickLoggerBudget.git
+```
+
+Open the clone in Android Studio (latest stable) with JDK 17.
 
 Local debug build (once the Gradle project is in the tree):
 
