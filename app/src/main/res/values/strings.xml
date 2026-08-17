@@ -4,5 +4,9 @@
     <string name="history">History</string>
     <string name="navigate_up">Navigate up</string>
     <string name="amount_label">Amount</string>
+    <string name="category_label">Category</string>
+    <string name="save">Save</string>
+    <string name="error_amount_must_be_positive">Enter an amount greater than zero.</string>
+    <string name="error_category_missing">Select a category.</string>
     <string name="history_placeholder">History will list expenses here.</string>
 </resources>

@@ -1,17 +1,18 @@
 package com.quicklogger.app.presentation.log
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -25,11 +26,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.quicklogger.app.R
+import com.quicklogger.app.domain.usecase.SaveExpenseError
+import com.quicklogger.app.presentation.components.AmountField
+import com.quicklogger.app.presentation.components.CategoryChips
 
 @Composable
 fun LogScreen(
@@ -86,17 +89,50 @@ internal fun LogScreenContent(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 24.dp),
         ) {
-            OutlinedTextField(
-                value = uiState.amountInput,
-                onValueChange = { onEvent(LogEvent.AmountChanged(it)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester),
-                textStyle = MaterialTheme.typography.displaySmall,
-                label = { Text(stringResource(R.string.amount_label)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            AmountField(
+                formattedAmount = uiState.amountFormatted,
+                onRawInputChange = { onEvent(LogEvent.AmountChanged(it)) },
+                label = stringResource(R.string.amount_label),
+                modifier = Modifier.focusRequester(focusRequester),
+                supportingText = uiState.saveError?.let { stringResource(it.messageRes) },
+                isError = uiState.saveError != null,
             )
+
+            Spacer(Modifier.height(24.dp))
+
+            Text(
+                text = stringResource(R.string.category_label),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            CategoryChips(
+                categories = uiState.categories,
+                selectedCategoryId = uiState.selectedCategoryId,
+                onCategorySelected = { onEvent(LogEvent.CategorySelected(it)) },
+            )
+
+            Spacer(Modifier.height(32.dp))
+
+            Button(
+                onClick = { onEvent(LogEvent.Save) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = uiState.canSave,
+            ) {
+                Text(stringResource(R.string.save))
+            }
         }
     }
 }
+
+/**
+ * Domain errors carry no user-facing copy; strings stay in `values/strings.xml`.
+ * Save is disabled while the form is invalid, so these are defensive.
+ */
+private val SaveExpenseError.messageRes: Int
+    get() = when (this) {
+        SaveExpenseError.InvalidAmount -> R.string.error_amount_must_be_positive
+        SaveExpenseError.UnknownCategory -> R.string.error_category_missing
+    }

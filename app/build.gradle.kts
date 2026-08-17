@@ -51,6 +51,12 @@ kotlin {
     }
 }
 
+ksp {
+    // ARCHITECTURE §7.1: exportSchema = true with the JSON committed under app/schemas/
+    // so sprint 4 onwards can write migrations against a recorded v1.
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
@@ -77,4 +83,13 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+
+    androidTestImplementation(composeBom)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

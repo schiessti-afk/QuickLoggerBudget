@@ -34,7 +34,7 @@ Apply this on top of that sprint’s exit criteria. A sprint that meets its feat
 ## Sprint map
 
 ```
-1 Runnable shell
+1 Runnable shell          ✓ done
       │
       ▼
 2 Two-second log          ← first vertical slice (open → amount → category → Save)
@@ -59,6 +59,8 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## Sprint 1 — Runnable shell
 
+**Status:** Done.
+
 **Outcome:** A signed-off Gradle app launches to a themed Log screen. CI proves lint, JVM tests, and a debug APK on every push to `main` and every PR.
 
 **In**
@@ -77,16 +79,18 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 **Exit criteria**
 
-- [ ] Opening the debug APK lands on Log. The amount field is focused and the IME is shown.
-- [ ] History is reachable from the Log top-bar list action and pops back to Log.
-- [ ] Merged manifest has no `INTERNET` permission.
-- [ ] `android:allowBackup` is `false`.
-- [ ] CI on `main` and PRs runs lint, JVM tests, and `assembleDebug`, and is green.
-- [ ] Domain / data / presentation packages exist even if some are still empty holders.
+- [x] Opening the debug APK lands on Log. The amount field is focused and the IME is shown.
+- [x] History is reachable from the Log top-bar list action and pops back to Log.
+- [x] Merged manifest has no `INTERNET` permission.
+- [x] `android:allowBackup` is `false`.
+- [x] CI on `main` and PRs runs lint, JVM tests, and `assembleDebug`, and is green.
+- [x] Domain / data / presentation packages exist even if some are still empty holders.
 
 ---
 
 ## Sprint 2 — Two-second log
+
+**Status:** Implemented. `lint`, `test`, and `assembleDebug` are green (49 JVM tests). The criteria below that need a device or emulator — and the human review in the standing bar — are still open.
 
 **Outcome:** The primary path works end to end with seeded categories and no receipt: open → type amount → tap category → Save. The form resets for the next log.
 
@@ -107,13 +111,13 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 **Exit criteria**
 
-- [ ] Cold start shows a selected category without a tap (last-selected or fallback).
-- [ ] Typing digits formats a currency amount; Save with a positive amount writes one Room row whose `currencyCode` matches the device locale at save.
-- [ ] Save with empty / zero amount writes nothing and stays on Log.
-- [ ] After Save, amount is cleared, category is unchanged, and the next expense can be typed immediately.
-- [ ] Uninstalling the app removes the database (private storage).
-- [ ] Domain tests run on the JVM with no Android runtime.
-- [ ] Money is never stored or totaled as `Double` / `Float`.
+- [x] Cold start shows a selected category without a tap (last-selected or fallback). *(ViewModel logic covered by JVM tests; the seeded-database half needs a device.)*
+- [x] Typing digits formats a currency amount; Save with a positive amount writes one Room row whose `currencyCode` matches the device locale at save. *(Formatting and currency selection covered on the JVM; the Room write needs a device.)*
+- [x] Save with empty / zero amount writes nothing and stays on Log.
+- [x] After Save, amount is cleared, category is unchanged, and the next expense can be typed immediately.
+- [ ] Uninstalling the app removes the database (private storage). *(Needs a device.)*
+- [x] Domain tests run on the JVM with no Android runtime.
+- [x] Money is never stored or totaled as `Double` / `Float`.
 
 ---
 

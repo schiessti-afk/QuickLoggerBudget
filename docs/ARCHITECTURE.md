@@ -492,7 +492,9 @@ Biometric lock is roadmap, not MVP. Unencrypted Room is accepted for a local sin
 
 ## 12. Testing Strategy
 
-TDD for domain logic and ViewModels. Framework: JUnit 4, Kotlin coroutines test, Turbine for Flow, fakes instead of mocking Room.
+TDD for domain logic and ViewModels. Framework: JUnit 4, `kotlinx-coroutines-test`, fakes instead of mocking Room.
+
+Turbine is **not** on the classpath. `LogUiState` is a single `MutableStateFlow` that tests assert against with `.value` after `advanceUntilIdle()`, so a Flow-assertion library has nothing to earn yet. Add it if a later sprint needs to assert on an emission *sequence* rather than a settled value.
 
 | Layer | Where | What |
 | --- | --- | --- |
