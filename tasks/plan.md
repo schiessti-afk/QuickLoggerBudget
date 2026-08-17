@@ -1,56 +1,83 @@
-# Implementation Plan: Sprint 2 — Two-second log
+# Implementation Plan: Sprint 3 — Private receipts
 
 ## Overview
 
-Make the primary path work end to end with seeded categories and no receipt: open → type amount → tap category → Save → form resets and the next log can be typed immediately. This fills the empty domain/data package holders left by sprint 1 with `Money`/`Expense`/`Category`, repository interfaces, the three use cases needed to log and observe, Room `quicklogger.db` v1 with a seed callback, and a SharedPreferences `LastCategoryStore`. The Log screen gains a digit-buffer amount field and radio category chips.
+Let a log optionally carry one photo, from the system camera or the photo picker, stored only under `filesDir/receipts/{uuid}.jpg`. The file never reaches the gallery, a cancelled capture leaves nothing behind, and replacing a receipt deletes the file it replaced. `SaveExpense` already accepts `receiptRelativePath` — sprint 3 fills it in.
+
+## The central constraint
+
+Exit criteria say the ViewModel holds no `Context`, `Uri`, or `AndroidViewModel`. But the flow needs both: `TakePicture` wants a `FileProvider` Uri for a file that must exist *before* the camera launches, and the picker hands back a `content://` Uri.
+
+The seam:
+
+```
+UI (has Context)          ViewModel (has neither)        Data (has Context)
+─────────────────────────────────────────────────────────────────────────────
+tap camera        ──►  LogEvent.CaptureReceipt
+                            │
+                            ├─► CreateReceiptDraft ──►  creates {uuid}.jpg, empty
+                            │                             returns "uuid.jpg"
+                       LogUiEvent.LaunchCamera("uuid.jpg")
+                            │
+  resolve File +  ◄─────────┘
+  FileProvider Uri,
+  launch TakePicture
+        │
+        └─────────►  LogEvent.ReceiptCaptured(success)
+                            │
+                            ├─ true  → confirm, delete the receipt it replaced
+                            └─ false → DeleteReceipt(draft)
+```
+
+- The ViewModel only ever handles the **relative path string** and a **Uri string**. Never an `android.net.Uri`, never a `Context`.
+- Uri resolution and both Activity Result launchers live in the composable, which ARCHITECTURE §3.1 explicitly permits.
+- Camera launch is a **one-shot** `LogUiEvent` over a `Channel`, not `UiState` (ARCHITECTURE §5 rule 4). Sprint 5 reuses the same channel for the share sheet.
 
 ## Architecture Decisions
 
-- **Amount is a digit buffer, not free text.** `LogUiState` holds `amountDigits` (digits only, capped at 12) and a derived `amountFormatted`. `LogEvent.AmountChanged(raw)` strips every non-digit from whatever the IME produced, so paste and locale separators cannot corrupt the buffer. The field renders `TextFieldValue` with the caret pinned to the end because the formatted text is rewritten on every keystroke.
-- **Formatting lives in domain, not Compose.** `MoneyFormatter` wraps `NumberFormat.getCurrencyInstance(locale)` and `Currency.getInstance(code)`. It takes `Locale` and `currencyCode` as parameters, so JVM tests never depend on the machine's default locale (ARCHITECTURE §6.1). History (sprint 4) and CSV (sprint 5) reuse it. `java.text` / `java.util` are not `android.*`, so domain stays clean.
-- **Fraction digits come from the currency, not a hard-coded 2.** `Currency.defaultFractionDigits` drives digits→minor conversion, so a JPY device gets `¥4500` from "4500" rather than `¥45`.
-- **The ViewModel reads the locale, the use case does not.** `SaveExpense` receives a `currencyCode`; `LogViewModel` resolves it with `Currency.getInstance(Locale.getDefault()).currencyCode` at save time (ARCHITECTURE §6.1). An unsupported locale falls back to `USD` rather than crashing.
-- **Category existence is validated in `SaveExpense`**, against `CategoryRepository`, not in Compose. Domain returns `Result.failure(InvalidAmount | UnknownCategory)`.
-- **Seeding runs in a Room `onCreate` callback** using raw `execSQL` on the supplied `SupportSQLiteDatabase`. Calling back into the DAO from `onCreate` would re-enter a database that is still being created.
-- **`LastCategoryStore` is written on select, not on save** (ARCHITECTURE §6.3), so a user who selects a chip and closes the app still gets that chip on cold start.
-- **Schema export uses the KSP argument** (`room.schemaLocation`) rather than adding the `androidx.room` Gradle plugin — no new plugin, and `app/schemas/` already exists with a `.gitkeep`.
-- **New test dependencies:** `kotlinx-coroutines-test` (JVM, needed for `Dispatchers.setMain`), plus `androidx.test.ext:junit`, `androidx.test:runner`, `androidx.room:room-testing`, and `compose-ui-test-junit4` for the `androidTest` source set ARCHITECTURE §12 already specifies. Turbine is skipped: `LogUiState` is a single `MutableStateFlow` and `.value` assertions are enough. No production dependency is added.
+- **`RECEIPTS_DIRECTORY` lives in domain.** Data resolves it against `filesDir`, presentation resolves it for `FileProvider` and Coil. Putting it in data would force presentation to import data and invert the dependency arrow.
+- **The picker Uri crosses layers as a `String`.** `LogEvent.ReceiptPicked(sourceUri: String)`; `ReceiptFileStore` calls `Uri.parse` on the far side. The ViewModel stays JVM-testable with a fake and holds no Android type — which is what the rule protects.
+- **Draft path is ViewModel-private, not in `UiState`.** The thumbnail must not appear until the capture actually succeeds, so the in-progress file is tracked separately from the confirmed `receiptRelativePath`.
+- **Oversized picks are rejected, not downscaled.** The sprint allows either. Rejecting needs no `Bitmap` decode in the data layer and gives the user a clear message; downscaling is a silent quality change. The copy streams with a running byte count and aborts past 10 MB, so a source that misreports its size cannot slip through.
+- **Save clears the receipt without deleting it.** After a successful write the file belongs to the persisted expense. Only replace, remove, and failed capture delete.
+- **`file_paths.xml` gets `files-path` only.** The `cache-path` entry ARCHITECTURE §7.3 lists is for CSV export in sprint 5; adding it now would be pulling roadmap work forward.
+- **FileProvider authority is `"${context.packageName}.fileprovider"`** resolved at runtime, matching the manifest's `${applicationId}` placeholder without turning on the `buildConfig` feature.
+- **No orphan sweep.** A receipt attached and then abandoned by a process kill leaves one file. Cleaning that up is not in the sprint, and a sweep on launch would be new unspecified behavior.
 
 ## Task List
 
 ### Phase 1: Domain
-- [ ] Task 1: `Money`, `Category`, `Expense`, `NewExpense`, `MoneyFormatter` + JVM tests
-- [ ] Task 2: Repository/store interfaces and the three use cases + JVM tests with repository fakes
+- [ ] Task 1: `ReceiptStore` + `ReceiptError` + `CreateReceiptDraft` / `ImportReceipt` / `DeleteReceipt` + JVM tests
 
 ### Checkpoint: Domain
-- [ ] `test` green; no `android.*`, Room, Compose, or `Uri` import under `domain/`
+- [ ] `test` green; domain still free of `android.*` / Room / Compose / `Uri`
 
-### Phase 2: Data
-- [ ] Task 3: Room entities, DAOs, database, seed callback, schema export
-- [ ] Task 4: Mappers, repository implementations, `LastCategoryStore`, Hilt module
-- [ ] Task 5: Room `androidTest` for seed + insert
+### Phase 2: Data and platform
+- [ ] Task 2: `ReceiptFileStore` under `filesDir/receipts/`, streaming copy with the 10 MB cap
+- [ ] Task 3: `FileProvider` manifest entry + `res/xml/file_paths.xml` + Hilt binding
+- [ ] Task 4: `ReceiptFileStore` instrumentation tests
 
-### Checkpoint: Persistence
-- [ ] `assembleDebug` green; schema JSON committed under `app/schemas/`
+### Checkpoint: Storage
+- [ ] `assembleDebug` green; merged manifest still has no `CAMERA` or media permission
 
 ### Phase 3: Log screen
-- [ ] Task 6: `LogUiState` / `LogEvent` / `LogViewModel` — categories, radio selection, digit buffer, save + reset
-- [ ] Task 7: Chips + amount field + Save in Compose; Compose smoke test
+- [ ] Task 5: `LogUiEvent` channel, receipt state, capture/import/remove/replace in `LogViewModel` + JVM tests
+- [ ] Task 6: Camera and gallery actions, Coil thumbnail, remove control + Compose smoke tests
 
 ### Checkpoint: Sprint complete
 - [ ] `lint`, `test`, `assembleDebug` green
-- [ ] Sprint 2 exit criteria checked (device checks still need a human)
+- [ ] Sprint 3 exit criteria checked (device checks still need a human)
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Formatted text fights the IME caret | High | `TextFieldValue` with selection pinned to the end; digits re-extracted from raw input every change |
-| Seed callback races the first `observeAll` collection | Med | Seed in `onCreate` via `execSQL` before any DAO read can return |
-| Tests inherit the machine's default locale | Med | `MoneyFormatter` takes `Locale` + `currencyCode`; no test calls `Locale.getDefault()` |
-| `Currency.getInstance` throws on an exotic locale | Med | ViewModel catches and falls back to `USD` |
-| `androidTest` cannot run here (no device/emulator) | Low | Write them, run `test`/`lint`/`assembleDebug` locally, flag the gap for human review |
+| `TakePicture` returns success but writes nothing | High | Confirm only on `success == true`; treat a zero-length file as a failed capture and delete it |
+| Replace leaks the previous file | High | Confirming a new path deletes the old one in the same state update; JVM test asserts the delete |
+| Picker Uri persisted by accident | High | Only the copied relative path reaches state; the source string is used once and dropped |
+| Coil caches the empty pre-capture file | Med | Thumbnail renders only after success, and every draft is a fresh uuid, so nothing stale can be keyed |
+| `androidTest` cannot run here (no device) | Med | Written and compiled; flagged unverified, same as sprint 2 |
 
 ## Open Questions
 
-None blocking. Amount digit cap (12) and the `USD` locale fallback are implementation defaults, not spec decisions — correct them if a different bound is wanted.
+None blocking. The 10 MB cap and reject-over-downscale are implementation choices the sprint left open — say so if you want downscaling instead.

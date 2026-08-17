@@ -8,5 +8,11 @@
     <string name="save">Save</string>
     <string name="error_amount_must_be_positive">Enter an amount greater than zero.</string>
     <string name="error_category_missing">Select a category.</string>
+    <string name="receipt_take_photo">Take photo</string>
+    <string name="receipt_choose_image">Choose image</string>
+    <string name="receipt_attached">Receipt attached</string>
+    <string name="receipt_remove">Remove receipt</string>
+    <string name="error_receipt_too_large">That image is over 10 MB. Choose a smaller one.</string>
+    <string name="error_receipt_unreadable">That image could not be read.</string>
     <string name="history_placeholder">History will list expenses here.</string>
 </resources>

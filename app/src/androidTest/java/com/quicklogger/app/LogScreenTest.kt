@@ -4,11 +4,14 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.quicklogger.app.domain.model.Category
+import com.quicklogger.app.domain.repository.ReceiptError
 import com.quicklogger.app.presentation.log.LogEvent
 import com.quicklogger.app.presentation.log.LogScreenContent
 import com.quicklogger.app.presentation.log.LogUiState
@@ -17,6 +20,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 /**
  * Smoke coverage only (ARCHITECTURE §12): the stateless content composable driven by
@@ -33,9 +37,15 @@ class LogScreenTest {
     private fun setContent(
         state: LogUiState,
         onEvent: (LogEvent) -> Unit = {},
+        receiptFile: File? = null,
     ) = composeRule.setContent {
         QuickLoggerTheme {
-            LogScreenContent(uiState = state, onEvent = onEvent, onOpenHistory = {})
+            LogScreenContent(
+                uiState = state,
+                onEvent = onEvent,
+                onOpenHistory = {},
+                receiptFile = receiptFile,
+            )
         }
     }
 
@@ -105,5 +115,89 @@ class LogScreenTest {
         composeRule.onNodeWithText("Food").performClick()
 
         assertEquals(emptyList<LogEvent>(), events)
+    }
+
+    // --- receipts (sprint 3) ---
+
+    @Test
+    fun bothReceiptActionsShowWhenNothingIsAttached() {
+        setContent(LogUiState(categories = listOf(food), selectedCategoryId = food.id))
+
+        composeRule.onNodeWithText("Take photo").assertExists()
+        composeRule.onNodeWithText("Choose image").assertExists()
+    }
+
+    @Test
+    fun tappingTakePhotoAsksTheViewModelForADraft() {
+        val events = mutableListOf<LogEvent>()
+        setContent(
+            LogUiState(categories = listOf(food), selectedCategoryId = food.id),
+            onEvent = { events += it },
+        )
+
+        composeRule.onNodeWithText("Take photo").performClick()
+
+        assertEquals(listOf(LogEvent.CaptureReceipt), events)
+    }
+
+    @Test
+    fun anAttachedReceiptReplacesTheActionsWithAThumbnailAndRemove() {
+        setContent(
+            LogUiState(
+                categories = listOf(food),
+                selectedCategoryId = food.id,
+                receiptRelativePath = "abc.jpg",
+            ),
+            receiptFile = File("/does/not/need/to/exist.jpg"),
+        )
+
+        composeRule.onNodeWithText("Take photo").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Remove receipt").assertExists()
+    }
+
+    @Test
+    fun removingAnAttachedReceiptEmitsRemove() {
+        val events = mutableListOf<LogEvent>()
+        setContent(
+            LogUiState(
+                categories = listOf(food),
+                selectedCategoryId = food.id,
+                receiptRelativePath = "abc.jpg",
+            ),
+            onEvent = { events += it },
+            receiptFile = File("/does/not/need/to/exist.jpg"),
+        )
+
+        composeRule.onNodeWithContentDescription("Remove receipt").performClick()
+
+        assertEquals(listOf(LogEvent.RemoveReceipt), events)
+    }
+
+    @Test
+    fun anOversizedPickShowsItsError() {
+        setContent(
+            LogUiState(
+                categories = listOf(food),
+                selectedCategoryId = food.id,
+                receiptError = ReceiptError.TooLarge,
+            ),
+        )
+
+        composeRule.onNodeWithText("That image is over 10 MB. Choose a smaller one.").assertExists()
+    }
+
+    @Test
+    fun saveIsBlockedWhileAReceiptIsStillCopying() {
+        setContent(
+            LogUiState(
+                amountDigits = "4500",
+                amountFormatted = "$45.00",
+                categories = listOf(food),
+                selectedCategoryId = food.id,
+                isAttachingReceipt = true,
+            ),
+        )
+
+        composeRule.onNodeWithText("Save").assertIsNotEnabled()
     }
 }

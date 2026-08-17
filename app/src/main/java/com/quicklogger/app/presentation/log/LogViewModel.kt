@@ -7,13 +7,21 @@ import com.quicklogger.app.domain.model.Money
 import com.quicklogger.app.domain.model.MoneyFormatter
 import com.quicklogger.app.domain.model.NewExpense
 import com.quicklogger.app.domain.repository.LastCategoryStore
+import com.quicklogger.app.domain.repository.ReceiptError
+import com.quicklogger.app.domain.usecase.CreateReceiptDraft
+import com.quicklogger.app.domain.usecase.DeleteReceipt
+import com.quicklogger.app.domain.usecase.ImportReceipt
 import com.quicklogger.app.domain.usecase.ObserveCategories
+import com.quicklogger.app.domain.usecase.ReceiptHasContent
 import com.quicklogger.app.domain.usecase.SaveExpense
 import com.quicklogger.app.domain.usecase.SaveExpenseError
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Currency
@@ -26,6 +34,10 @@ class LogViewModel @Inject constructor(
     observeCategories: ObserveCategories,
     private val saveExpense: SaveExpense,
     private val lastCategoryStore: LastCategoryStore,
+    private val createReceiptDraft: CreateReceiptDraft,
+    private val importReceipt: ImportReceipt,
+    private val deleteReceipt: DeleteReceipt,
+    private val receiptHasContent: ReceiptHasContent,
     // A Provider, not a Locale: ViewModels survive configuration changes, so a
     // snapshot taken at construction would go stale after a locale switch.
     // ARCHITECTURE §6.1 fixes the currency at save time.
@@ -33,6 +45,15 @@ class LogViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LogUiState())
     val uiState: StateFlow<LogUiState> = _uiState.asStateFlow()
+
+    private val _uiEvents = Channel<LogUiEvent>(Channel.BUFFERED)
+    val uiEvents: Flow<LogUiEvent> = _uiEvents.receiveAsFlow()
+
+    /**
+     * The file handed to the camera, held until the result comes back. Kept out of
+     * [LogUiState] so a capture in progress never renders a thumbnail.
+     */
+    private var pendingCapturePath: String? = null
 
     init {
         viewModelScope.launch {
@@ -57,6 +78,10 @@ class LogViewModel @Inject constructor(
             is LogEvent.AmountChanged -> updateAmount(event.raw)
             is LogEvent.CategorySelected -> selectCategory(event.id)
             LogEvent.Save -> save()
+            LogEvent.CaptureReceipt -> captureReceipt()
+            is LogEvent.ReceiptCaptured -> finishCapture(event.success)
+            is LogEvent.ReceiptPicked -> importPickedReceipt(event.sourceUri)
+            LogEvent.RemoveReceipt -> removeReceipt()
         }
     }
 
@@ -87,17 +112,93 @@ class LogViewModel @Inject constructor(
                 NewExpense(
                     amount = Money(state.amountDigits.toLong(), currencyCode()),
                     categoryId = categoryId,
+                    receiptRelativePath = state.receiptRelativePath,
                 ),
             )
             _uiState.update {
                 if (result.isSuccess) {
-                    // Amount clears, category stays: the next log needs no setup.
-                    it.copy(amountDigits = "", amountFormatted = "", isSaving = false)
+                    // Amount and receipt clear, category stays. The file is NOT
+                    // deleted — the persisted expense owns it now.
+                    it.copy(
+                        amountDigits = "",
+                        amountFormatted = "",
+                        receiptRelativePath = null,
+                        receiptError = null,
+                        isSaving = false,
+                    )
                 } else {
                     it.copy(isSaving = false, saveError = result.exceptionOrNull() as? SaveExpenseError)
                 }
             }
         }
+    }
+
+    // --- receipts ---
+
+    private fun captureReceipt() {
+        viewModelScope.launch {
+            createReceiptDraft()
+                .onSuccess { draft ->
+                    // The file must exist before TakePicture runs (ARCHITECTURE §7.2).
+                    pendingCapturePath = draft
+                    _uiState.update { it.copy(receiptError = null) }
+                    _uiEvents.send(LogUiEvent.LaunchCamera(draft))
+                }
+                .onFailure { failReceipt(ReceiptError.Unreadable) }
+        }
+    }
+
+    private fun finishCapture(success: Boolean) {
+        val draft = pendingCapturePath ?: return
+        pendingCapturePath = null
+        viewModelScope.launch {
+            // Some camera apps return OK having written nothing; a zero-length file
+            // is a failed capture, not a receipt.
+            if (success && receiptHasContent(draft)) {
+                attach(draft)
+            } else {
+                deleteReceipt(draft)
+            }
+        }
+    }
+
+    private fun importPickedReceipt(sourceUri: String) {
+        _uiState.update { it.copy(isAttachingReceipt = true, receiptError = null) }
+        viewModelScope.launch {
+            importReceipt(sourceUri)
+                .onSuccess { attach(it) }
+                .onFailure { failReceipt(it as? ReceiptError ?: ReceiptError.Unreadable) }
+        }
+    }
+
+    private fun removeReceipt() {
+        val attached = _uiState.value.receiptRelativePath
+        val pending = pendingCapturePath
+        pendingCapturePath = null
+        _uiState.update {
+            it.copy(receiptRelativePath = null, receiptError = null, isAttachingReceipt = false)
+        }
+        viewModelScope.launch {
+            attached?.let { deleteReceipt(it) }
+            pending?.let { deleteReceipt(it) }
+        }
+    }
+
+    /** Attaches [relativePath], deleting whatever receipt it replaces. */
+    private suspend fun attach(relativePath: String) {
+        val replaced = _uiState.value.receiptRelativePath
+        _uiState.update {
+            it.copy(
+                receiptRelativePath = relativePath,
+                isAttachingReceipt = false,
+                receiptError = null,
+            )
+        }
+        if (replaced != null && replaced != relativePath) deleteReceipt(replaced)
+    }
+
+    private fun failReceipt(error: ReceiptError) {
+        _uiState.update { it.copy(isAttachingReceipt = false, receiptError = error) }
     }
 
     /**

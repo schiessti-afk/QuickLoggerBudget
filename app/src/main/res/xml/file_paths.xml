@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ARCHITECTURE §7.3. Only the receipts directory is exposed, and only through a
+    temporary per-Uri grant. The cache-path entry for CSV export arrives in sprint 5.
+-->
+<paths>
+    <files-path
+        name="receipts"
+        path="receipts/" />
+</paths>

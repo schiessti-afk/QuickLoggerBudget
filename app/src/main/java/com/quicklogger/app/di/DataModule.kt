@@ -7,11 +7,13 @@ import com.quicklogger.app.data.local.ExpenseDao
 import com.quicklogger.app.data.local.QuickLoggerDatabase
 import com.quicklogger.app.data.local.SeedCategoriesCallback
 import com.quicklogger.app.data.preferences.SharedPreferencesLastCategoryStore
+import com.quicklogger.app.data.receipt.ReceiptFileStore
 import com.quicklogger.app.data.repository.RoomCategoryRepository
 import com.quicklogger.app.data.repository.RoomExpenseRepository
 import com.quicklogger.app.domain.repository.CategoryRepository
 import com.quicklogger.app.domain.repository.ExpenseRepository
 import com.quicklogger.app.domain.repository.LastCategoryStore
+import com.quicklogger.app.domain.repository.ReceiptStore
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -64,4 +66,7 @@ abstract class RepositoryModule {
     abstract fun bindLastCategoryStore(
         impl: SharedPreferencesLastCategoryStore,
     ): LastCategoryStore
+
+    @Binds
+    abstract fun bindReceiptStore(impl: ReceiptFileStore): ReceiptStore
 }

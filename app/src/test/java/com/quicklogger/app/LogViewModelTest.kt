@@ -1,7 +1,11 @@
 package com.quicklogger.app
 
 import com.quicklogger.app.domain.model.Category
+import com.quicklogger.app.domain.usecase.CreateReceiptDraft
+import com.quicklogger.app.domain.usecase.DeleteReceipt
+import com.quicklogger.app.domain.usecase.ImportReceipt
 import com.quicklogger.app.domain.usecase.ObserveCategories
+import com.quicklogger.app.domain.usecase.ReceiptHasContent
 import com.quicklogger.app.domain.usecase.SaveExpense
 import com.quicklogger.app.presentation.log.LogEvent
 import com.quicklogger.app.presentation.log.LogViewModel
@@ -51,6 +55,7 @@ class LogViewModelTest {
         expenses = FakeExpenseRepository()
         lastCategory = FakeLastCategoryStore(remembered)
         val categoryRepository = FakeCategoryRepository(categories)
+        val receipts = FakeReceiptStore()
         return LogViewModel(
             observeCategories = ObserveCategories(categoryRepository),
             saveExpense = SaveExpense(
@@ -59,6 +64,10 @@ class LogViewModelTest {
                 Clock.fixed(Instant.parse("2026-08-17T17:32:00Z"), ZoneOffset.UTC),
             ),
             lastCategoryStore = lastCategory,
+            createReceiptDraft = CreateReceiptDraft(receipts),
+            importReceipt = ImportReceipt(receipts),
+            deleteReceipt = DeleteReceipt(receipts),
+            receiptHasContent = ReceiptHasContent(receipts),
             localeProvider = Provider { locale },
         )
     }

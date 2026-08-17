@@ -123,6 +123,8 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## Sprint 3 — Private receipts
 
+**Status:** Implemented. `lint`, `test`, and `assembleDebug` are green (78 JVM tests). The criteria below that need a device or emulator — and the human review in the standing bar — are still open.
+
 **Outcome:** A log can optionally attach a photo from the system camera or the photo picker. The file never enters the gallery. Cancel does not leave junk files.
 
 **In**
@@ -141,12 +143,12 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 **Exit criteria**
 
-- [ ] A successful camera capture stores a JPEG under `filesDir/receipts/` and shows a thumbnail on Log. Saving persists `receiptRelativePath`.
-- [ ] A gallery pick copies into the same directory. The original picker Uri is not stored.
-- [ ] Cancelled camera / failed capture deletes the empty file. Remove-receipt deletes the in-progress file.
-- [ ] The device gallery / `MediaStore` does not gain a new image from capture or pick.
-- [ ] Manifest still has no `CAMERA` and no media/storage permissions.
-- [ ] ViewModel still holds no `Context`, `Uri`, or `AndroidViewModel`.
+- [x] A successful camera capture stores a JPEG under `filesDir/receipts/` and shows a thumbnail on Log. Saving persists `receiptRelativePath`. *(Path persistence and the state machine are covered on the JVM; the real capture needs a device.)*
+- [x] A gallery pick copies into the same directory. The original picker Uri is not stored.
+- [x] Cancelled camera / failed capture deletes the empty file. Remove-receipt deletes the in-progress file.
+- [x] The device gallery / `MediaStore` does not gain a new image from capture or pick. *(No `MediaStore` reference exists in `src/main`; both contracts delegate to system apps.)*
+- [x] Manifest still has no `CAMERA` and no media/storage permissions.
+- [x] ViewModel still holds no `Context`, `Uri`, or `AndroidViewModel`.
 
 ---
 

@@ -24,6 +24,39 @@ class ManifestPrivacyTest {
     }
 
     @Test
+    fun doesNotDeclareAnyMediaOrStoragePermission() {
+        // TakePicture and PickVisualMedia delegate to system apps. Declaring these
+        // would force a runtime prompt before either contract could run.
+        listOf(
+            "READ_MEDIA_IMAGES",
+            "READ_MEDIA_VIDEO",
+            "READ_MEDIA_VISUAL_USER_SELECTED",
+            "READ_EXTERNAL_STORAGE",
+            "WRITE_EXTERNAL_STORAGE",
+        ).forEach { permission ->
+            assertFalse("manifest must not declare $permission", manifest.contains(permission))
+        }
+    }
+
+    @Test
+    fun fileProviderIsNotExportedAndGrantsPerUri() {
+        assertTrue(manifest.contains("androidx.core.content.FileProvider"))
+        assertTrue(manifest.contains("android:authorities=\"\${applicationId}.fileprovider\""))
+        assertTrue(manifest.contains("android:exported=\"false\""))
+        assertTrue(manifest.contains("android:grantUriPermissions=\"true\""))
+    }
+
+    @Test
+    fun fileProviderExposesOnlyTheReceiptsDirectory() {
+        val paths = File("src/main/res/xml/file_paths.xml").readText()
+
+        assertTrue(paths.contains("<files-path"))
+        assertTrue(paths.contains("path=\"receipts/\""))
+        assertFalse("external storage must never be exposed", paths.contains("external-path"))
+        assertFalse("the whole files dir must not be exposed", paths.contains("path=\".\""))
+    }
+
+    @Test
     fun pointsAtDenyAllBackupRules() {
         assertTrue(manifest.contains("android:fullBackupContent=\"@xml/backup_rules\""))
         assertTrue(manifest.contains("android:dataExtractionRules=\"@xml/data_extraction_rules\""))

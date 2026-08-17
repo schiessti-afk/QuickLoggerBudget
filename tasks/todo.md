@@ -1,55 +1,51 @@
-# Sprint 2 tasks
+# Sprint 3 tasks
 
-- [x] Task 1: Domain models + `MoneyFormatter`
-  - Acceptance: `Money(minor, currencyCode)`; `Expense`; `Category`; `NewExpense`; formatter converts digits→minor by currency fraction digits and formats by explicit locale
-  - Verify: `.\gradlew.bat :app:testDebugUnitTest --tests com.quicklogger.app.MoneyFormatterTest` — 7 tests green
-  - Files: `domain/model/{Money,Category,Expense,MoneyFormatter}.kt`
+- [x] Task 1: `ReceiptStore` + `ReceiptError` + receipt use cases
+  - Acceptance: create/import/delete/hasContent behind a domain interface with no Android types; oversized and unreadable sources fail
+  - Verify: `.\gradlew.bat :app:testDebugUnitTest --tests com.quicklogger.app.ReceiptUseCasesTest` — 8 tests green
+  - Files: `domain/repository/ReceiptStore.kt`, `domain/usecase/ReceiptUseCases.kt`
 
-- [x] Task 2: Repository interfaces + `SaveExpense` / `ObserveExpenses` / `ObserveCategories`
-  - Acceptance: save rejects `minor <= 0` and unknown categories; observers return domain models
-  - Verify: `SaveExpenseTest` (8) + `ObserveUseCasesTest` (4) green
-  - Files: `domain/repository/*.kt`, `domain/usecase/*.kt`
+- [x] Task 2: `ReceiptFileStore` under `filesDir/receipts/`
+  - Acceptance: `{uuid}.jpg` only; streaming copy aborts past 10 MB and leaves no partial file; path traversal cannot escape the directory
+  - Verify: `assembleDebug` green
+  - Files: `data/receipt/ReceiptFileStore.kt`
 
-- [x] Task 3: Room v1 — entities, DAOs, database, seed callback, schema export
-  - Acceptance: `quicklogger.db` v1, `exportSchema = true`, six defaults seeded on create, `Other` protected
-  - Verify: `assembleDebug` green; `app/schemas/com.quicklogger.app.data.local.QuickLoggerDatabase/1.json` written with `COLLATE NOCASE` on `categories.name`
-  - Files: `data/local/{Entities,Daos,QuickLoggerDatabase,Mappers}.kt`, `app/build.gradle.kts`
+- [x] Task 3: `FileProvider` + `file_paths.xml` + Hilt binding
+  - Acceptance: `exported=false`, `grantUriPermissions=true`, `files-path` → `receipts/` only; authority `${applicationId}.fileprovider`
+  - Verify: `ManifestPrivacyTest` — 4 new guards green; merged manifest inspected
+  - Files: `AndroidManifest.xml`, `res/xml/file_paths.xml`, `di/DataModule.kt`
 
-- [x] Task 4: Mappers, repository impls, `LastCategoryStore`, Hilt module
-  - Acceptance: domain never sees `@Entity`; last category id persisted in SharedPreferences off the main thread
-  - Verify: `assembleDebug` green; Hilt graph resolves
-  - Files: `data/repository/Room*.kt`, `data/preferences/SharedPreferencesLastCategoryStore.kt`, `di/DataModule.kt`
-
-- [~] Task 5: Room instrumentation tests (seed + insert)
-  - Acceptance: fresh in-memory DB has the six defaults in order; insert round-trips; newest-first ordering; FK rejects an orphan
-  - Status: **written and compiling, never executed** — no device or emulator available in this session
+- [~] Task 4: `ReceiptFileStore` instrumentation tests
+  - Acceptance: draft is empty and lands in `receipts/`; import copies bytes and drops the source name; oversized import leaves nothing; traversal delete is refused
+  - Status: **written and compiling, never executed** — no device or emulator in this session
   - Verify: `.\gradlew.bat :app:connectedDebugAndroidTest`
-  - Files: `app/src/androidTest/java/com/quicklogger/app/QuickLoggerDatabaseTest.kt`
+  - Files: `app/src/androidTest/java/com/quicklogger/app/ReceiptFileStoreTest.kt` (13 tests)
 
-- [x] Task 6: `LogViewModel` — categories, radio selection, digit buffer, save + reset
-  - Acceptance: cold start selects last/fallback without a tap; save clears amount, keeps category; empty/zero amount does not write
-  - Verify: `LogViewModelTest` — 18 tests green
-  - Files: `presentation/log/{LogUiState,LogEvent,LogViewModel,AmountBuffer}.kt`
+- [x] Task 5: `LogUiEvent` channel + receipt state in `LogViewModel`
+  - Acceptance: draft created before the camera launches; no thumbnail until success; cancel deletes; replace deletes the previous file; save persists the path and clears it without deleting
+  - Verify: `LogViewModelReceiptTest` — 14 tests green
+  - Files: `presentation/log/{LogEvent,LogUiState,LogViewModel}.kt`
 
-- [~] Task 7: Compose — amount field, `FlowRow` radio chips, Save
-  - Acceptance: chips render selection; Save disabled while the amount is empty; tapping the selected chip is a no-op
-  - Status: screen and components done and building; the 6 smoke tests are **written and compiling, never executed** (no device)
+- [~] Task 6: Camera and gallery actions, Coil thumbnail, remove
+  - Acceptance: two actions when empty, thumbnail + remove when attached, error text on an oversized pick, Save blocked mid-copy
+  - Status: screen and components done and building; the 6 new smoke tests are **written and compiling, never executed**
   - Verify: `.\gradlew.bat :app:connectedDebugAndroidTest`
-  - Files: `presentation/log/LogScreen.kt`, `presentation/components/{AmountField,CategoryChips}.kt`
+  - Files: `presentation/log/LogScreen.kt`, `presentation/components/{ReceiptAttachment,ReceiptFiles}.kt`
 
-## Checkpoint: Sprint 2 done
+## Checkpoint: Sprint 3 done
 - [x] `.\gradlew.bat lint`
-- [x] `.\gradlew.bat test` — 49 tests, 0 failures
+- [x] `.\gradlew.bat test` — 78 tests, 0 failures
 - [x] `.\gradlew.bat assembleDebug`
 - [x] Domain has no `android.*` / Room / Compose / `Uri` imports
-- [x] Merged manifest still has no `INTERNET`; `allowBackup` still false
+- [x] `LogViewModel` holds no `Context`, `Uri`, or `AndroidViewModel`
+- [x] Merged manifest has no `CAMERA`, no media/storage permission, still no `INTERNET`
+- [x] No `MediaStore` reference anywhere in `src/main`
 - [ ] `.\gradlew.bat connectedDebugAndroidTest` (needs a device/emulator)
-- [ ] Cold start shows a selected category without a tap (needs a device)
-- [ ] Save writes one row with the device-locale currency code (needs a device)
-- [ ] Uninstall removes the database (needs a device)
+- [ ] A real capture stores a JPEG and shows a thumbnail (needs a device)
+- [ ] The device gallery gains no image from capture or pick (needs a device)
 - [ ] Human review before the sprint is treated as closed
 
 ## Follow-ups noticed, not actioned
-- `createComposeRule()` is deprecated in favour of `androidx.compose.ui.test.junit4.v2.createComposeRule` (StandardTestDispatcher instead of UnconfinedTestDispatcher). Left on the v1 API deliberately: these tests have never been executed, and migrating an unrunnable test to a dispatcher with different timing would make a first emulator run fail for reasons unrelated to the app. Migrate once `connectedDebugAndroidTest` has gone green at least once.
-- `presentation/categories/Categories.kt` and `data/receipt/Receipt.kt` are still empty package holders. They belong to sprints 4 and 3; left in place.
-- `ExpenseDao` / `CategoryDao` carry only the reads and the insert sprint 2 needs. ARCHITECTURE §7.1 lists a wider surface (`observeInRange`, `update`, `delete`, `getById`); those land with the sprints that use them.
+- `createComposeRule()` is still the deprecated v1 API. Unchanged from sprint 2 and for the same reason: migrating tests that have never run would make a first emulator run fail for reasons unrelated to the app.
+- A receipt attached and then abandoned by a process kill leaves one orphan file under `receipts/`. No sweep exists; the sprint does not ask for one. Worth a decision before sprint 7.
+- `presentation/categories/Categories.kt` is still an empty package holder — sprint 4 fills it.

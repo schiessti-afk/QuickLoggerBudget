@@ -1,5 +1,8 @@
 package com.quicklogger.app.presentation.log
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,15 +27,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.quicklogger.app.R
+import com.quicklogger.app.domain.repository.ReceiptError
 import com.quicklogger.app.domain.usecase.SaveExpenseError
 import com.quicklogger.app.presentation.components.AmountField
 import com.quicklogger.app.presentation.components.CategoryChips
+import com.quicklogger.app.presentation.components.ReceiptAttachment
+import com.quicklogger.app.presentation.components.receiptFile
+import com.quicklogger.app.presentation.components.receiptUri
+import java.io.File
 
 @Composable
 fun LogScreen(
@@ -40,10 +49,39 @@ fun LogScreen(
     viewModel: LogViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // ARCHITECTURE §3.1: the launchers live here, not in the ViewModel.
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture(),
+    ) { success -> viewModel.onEvent(LogEvent.ReceiptCaptured(success)) }
+
+    val pickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        // A null Uri means the user backed out; nothing was created, nothing to clean up.
+        uri?.let { viewModel.onEvent(LogEvent.ReceiptPicked(it.toString())) }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.uiEvents.collect { event ->
+            when (event) {
+                is LogUiEvent.LaunchCamera ->
+                    cameraLauncher.launch(receiptUri(context, event.relativePath))
+            }
+        }
+    }
+
     LogScreenContent(
         uiState = uiState,
         onEvent = viewModel::onEvent,
         onOpenHistory = onOpenHistory,
+        receiptFile = uiState.receiptRelativePath?.let { receiptFile(context, it) },
+        onPickReceipt = {
+            pickerLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+            )
+        },
     )
 }
 
@@ -53,6 +91,8 @@ internal fun LogScreenContent(
     uiState: LogUiState,
     onEvent: (LogEvent) -> Unit,
     onOpenHistory: () -> Unit,
+    receiptFile: File? = null,
+    onPickReceipt: () -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -114,6 +154,17 @@ internal fun LogScreenContent(
                 onCategorySelected = { onEvent(LogEvent.CategorySelected(it)) },
             )
 
+            Spacer(Modifier.height(24.dp))
+
+            ReceiptAttachment(
+                receiptFile = receiptFile,
+                isAttaching = uiState.isAttachingReceipt,
+                onCapture = { onEvent(LogEvent.CaptureReceipt) },
+                onPick = onPickReceipt,
+                onRemove = { onEvent(LogEvent.RemoveReceipt) },
+                errorText = uiState.receiptError?.let { stringResource(it.messageRes) },
+            )
+
             Spacer(Modifier.height(32.dp))
 
             Button(
@@ -135,4 +186,10 @@ private val SaveExpenseError.messageRes: Int
     get() = when (this) {
         SaveExpenseError.InvalidAmount -> R.string.error_amount_must_be_positive
         SaveExpenseError.UnknownCategory -> R.string.error_category_missing
+    }
+
+private val ReceiptError.messageRes: Int
+    get() = when (this) {
+        ReceiptError.TooLarge -> R.string.error_receipt_too_large
+        ReceiptError.Unreadable -> R.string.error_receipt_unreadable
     }
