@@ -1,6 +1,6 @@
 # QuickLogger
 
-![QuickLogger Log screen](docs/assets/github-social-preview.png)
+![QuickLogger Log screen](assets/github-social-preview.png)
 
 **Offline-first Android expense logger** — by Micha Schiess
 
@@ -106,7 +106,7 @@ Product, architecture, and visual language are specified before implementation. 
 
 1. [Product idea](docs/IDEA.md) — why, who, what
 2. [Architecture](docs/ARCHITECTURE.md) — layers, data flow, platform rules
-3. [Design](docs/DESIGN.md) — warm stationery, seed `#9A4A32`, art in [`docs/assets/`](docs/assets/)
+3. [Design](docs/DESIGN.md) — warm stationery, seed `#9A4A32`, art in [`assets/`](assets/)
 4. [Sprints](docs/Sprint.md) — implementation sequence and exit criteria (no calendar)
 
 ```bash
@@ -115,7 +115,7 @@ git clone https://github.com/schiessti-afk/QuickLoggerBudget.git
 
 Open the clone in Android Studio (latest stable) with JDK 17.
 
-Local debug build (once the Gradle project is in the tree):
+Local debug build:
 
 ```bash
 ./gradlew assembleDebug
