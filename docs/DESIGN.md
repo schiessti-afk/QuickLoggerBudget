@@ -308,10 +308,10 @@ no drop shadows, no UI chrome, no letters unless the prompt asks for a wordmark.
 | | |
 | --- | --- |
 | **Why** | Sideloaded APK still needs a recognizable storefront on GitHub. Not shipped in the APK. |
-| **Deliverables** | One 1280×640 still: phone frame with Log, huge cream canvas, amount focused, six chips with pictograms. No fake store badges. |
-| **Do not** | Invent extra tabs, a cloud-sync banner, or a dark theme. |
+| **Deliverables** | One 1280×640 still: phone frame with Log as shipped, huge cream canvas. No fake store badges. |
+| **Do not** | Invent extra tabs, a cloud-sync banner, a dark theme, a centered title, a hamburger, a floating amount with no field chrome, stadium-pill buttons, or a stamp icon on Save. |
 | **File** | [`assets/github-social-preview.png`](../assets/github-social-preview.png) |
-| **Prompt** | `Product still for GitHub: Android phone showing a minimal cream-paper expense logger, huge currency amount focused, six stationery category chips with small ink pictograms, warm Material UI, sealing-wax save button, no smiling humans, no cloud icons, 1280×640.` |
+| **Prompt** | `Product still for GitHub, 1280×640: Android phone on a huge cream #F6F1E8 canvas. Log as shipped: M3 top bar (left-aligned wax receipt glyph + QuickLogger, list icon on the right), outlined Amount field with large Inter "R$ 45,00", Category FilterChips with the six stationery pictograms plus a + chip (Food selected), hairline divider, two 56 dp filled camera/gallery tiles, equal-width 12 dp Save (filled wax) and Save & Share (outlined). No keyboard, no people, no cloud icons.` |
 
 ### 8.5 Category pictograms (six)
 

@@ -94,11 +94,12 @@ Single Gradle module (`:app`), packages by layer. Feature modules would split a 
 - Camera capture and gallery import into private storage
 - Share text for one log and for day / week / month summaries
 - CSV export through `FileProvider`
+- Monthly spending targets (overall and per category)
 - Automated signed APK on git tag
 
 **Intentionally later**
 
-Cloud sync, Google Sheets, biometric lock, receipt OCR, in-app CameraX, multi-currency wallets, budgets, recurring expenses.
+Cloud sync, Google Sheets, biometric lock, receipt OCR, in-app CameraX, multi-currency wallets, budget periods other than the calendar month, recurring expenses.
 
 ## Development
 
@@ -129,7 +130,27 @@ Windows:
 
 Debug APK: `app/build/outputs/apk/debug/`.
 
-Release APKs are produced by CI on a git tag. A local release build needs a keystore and signing properties (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`). **Never commit the keystore, `keystore.properties`, or passwords.**
+Release APKs are produced by CI on a git tag (`v*`, for example `v1.0.0`). A local release build needs a keystore and `keystore.properties` at the repo root:
+
+```
+storeFile=upload-keystore.p12
+storePassword=<store password>
+keyAlias=<alias>
+keyPassword=<key password>
+```
+
+Or the same four values as environment variables: `QUICKLOGGER_STORE_FILE`, `QUICKLOGGER_STORE_PASSWORD`, `QUICKLOGGER_KEY_ALIAS`, `QUICKLOGGER_KEY_PASSWORD`. `assembleRelease` fails if they are missing; it will not produce an unsigned APK.
+
+GitHub Actions secrets (repository Settings → Secrets and variables → Actions):
+
+| Secret | Gradle field |
+| --- | --- |
+| `RELEASE_KEYSTORE_BASE64` | `storeFile` (JKS/PKCS12, Base64-encoded) |
+| `RELEASE_KEYSTORE_PASSWORD` | `storePassword` |
+| `RELEASE_KEY_ALIAS` | `keyAlias` |
+| `RELEASE_KEY_PASSWORD` | `keyPassword` |
+
+Encode the keystore with `base64 -w 0 upload-keystore.p12` (Linux), `base64 -i upload-keystore.p12` (macOS), or `[Convert]::ToBase64String([IO.File]::ReadAllBytes("upload-keystore.p12"))` (Windows). **Never commit the keystore, `keystore.properties`, or passwords.**
 
 ## License
 

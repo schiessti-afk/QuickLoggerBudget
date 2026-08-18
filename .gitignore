@@ -25,6 +25,10 @@ signing.properties
 *.keystore
 *.p12
 *.pepk
+# Explicit names so a glob tweak cannot leak the upload key
+upload-keystore.jks
+upload-keystore.p12
+upload-keystore.b64
 release/
 secrets.properties
 google-services.json

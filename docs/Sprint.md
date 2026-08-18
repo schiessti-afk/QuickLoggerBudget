@@ -338,6 +338,10 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## Sprint 9 — Signed release
 
+**Status:** Implemented. `lint`, `test` (221 JVM tests, 0 failures; this sprint added 8), and `assembleDebug` are green. Local `assembleRelease` fails closed without credentials and produces a v2-signed, R8-minified APK when they are present. Tagging `v1.0.0` still needs the four GitHub Actions secrets and a human tag push — the workflow is in tree; the first GitHub Release is not created by this change. Cold-start on a minified APK, uninstall wiping private storage, and the human review in the standing bar still need a device.
+
+**Outcome:** A git tag `v*` produces a minified, signed APK on GitHub Releases. Secrets never enter git. `main` stays releasable.
+
 **Outcome:** A git tag `v*` produces a minified, signed APK on GitHub Releases. Secrets never enter git. `main` stays releasable.
 
 **In**
@@ -353,11 +357,11 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 **Exit criteria**
 
-- [ ] Tagging `v1.0.0` (or the agreed first tag) uploads a signed release APK to GitHub Releases.
-- [ ] Local or CI `assembleRelease` succeeds with secrets injected; the same build fails closed if secrets are missing (no unsigned “success”).
-- [ ] The repository does not contain a keystore, `keystore.properties`, or signing passwords.
-- [ ] Release APK still has no `INTERNET` permission. Uninstall still removes expenses and receipts.
-- [ ] R8 is on for release; the app cold-starts to the focused amount field.
+- [ ] Tagging `v1.0.0` (or the agreed first tag) uploads a signed release APK to GitHub Releases. *(`release.yml` runs on `v*`, fails closed on empty secrets, `assembleRelease`s with R8, and `gh release create`s the APK. The first tag still needs the four repository secrets and a human push.)*
+- [x] Local or CI `assembleRelease` succeeds with secrets injected; the same build fails closed if secrets are missing (no unsigned “success”). *(Throwaway PKCS12: v2-signed `app-release.apk`. Without credentials: `requireReleaseSigning` fails with “Refusing to produce an unsigned APK.” The task is never UP-TO-DATE so a later unsigned run cannot skip the gate.)*
+- [x] The repository does not contain a keystore, `keystore.properties`, or signing passwords. *(`ReleaseConfigTest` + `.gitignore`; throwaway keystore lived only under `%TEMP%` and was deleted.)*
+- [x] Release APK still has no `INTERNET` permission. Uninstall still removes expenses and receipts. *(Packaged release manifest has no `INTERNET`. Uninstall wiping `filesDir` is unchanged private-storage behavior; confirming on a device is the same open item as sprints 2–8.)*
+- [x] R8 is on for release; the app cold-starts to the focused amount field. *(`minifyReleaseWithR8` ran; `mapping.txt` exists. AGP 9.3 `optimization { enable = true }`. Cold-start of that APK needs a device.)*
 
 ---
 

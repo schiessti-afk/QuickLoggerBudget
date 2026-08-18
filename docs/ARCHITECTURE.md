@@ -595,12 +595,15 @@ Trunk-based: short-lived branches into `main`. `main` stays releasable.
 
 **Release (git tag `v*`):**
 
-1. `assembleRelease` with signing secrets
-2. Upload the APK to GitHub Releases
+1. Fail closed if repository secrets are missing (empty secrets are treated as unset). No unsigned APK is a successful release.
+2. `assembleRelease` with R8 and signing secrets
+3. Upload the APK to GitHub Releases via `gh release create`
 
-Versioning: SemVer. `versionName` matches the tag (`1.0.0` for `v1.0.0`). `versionCode` is a monotonic integer (CI can use the run number or a tag counter).
+Versioning: SemVer. `versionName` matches the tag (`1.0.0` for `v1.0.0`) and is passed as `-PversionName`. `versionCode` is `${{ github.run_number }}`, which is monotonic.
 
-R8/minification on for release. Keep Room and Kotlin metadata rules as required by those libraries.
+R8 is on for release through AGP 9.3’s `optimization { enable = true }` ([Enable app optimization with R8](https://developer.android.com/topic/performance/app-optimization/enable-app-optimization)). That flag turns on code optimization and resource shrinking together and includes the default Android keep rules. App keep files live in `app/src/main/keepRules/*.keep`. Room, Kotlin metadata, Hilt, and Compose ship consumer rules in their AARs; do not duplicate those in the app unless a minified build proves they are required.
+
+Signing credentials never enter git (`.gitignore` already excludes `keystore.properties`, `*.jks`, `*.keystore`). Local `assembleRelease` reads `keystore.properties` at the repo root (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`). CI decodes `RELEASE_KEYSTORE_BASE64` into a runner-temp file ([Storing Base64 binary blobs as secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions#storing-base64-binary-blobs-as-secrets)) and passes `QUICKLOGGER_STORE_FILE`, `QUICKLOGGER_STORE_PASSWORD`, `QUICKLOGGER_KEY_ALIAS`, and `QUICKLOGGER_KEY_PASSWORD`. Incomplete credentials fail configuration; missing credentials fail `requireReleaseSigning` before a release APK is packaged.
 
 ---
 

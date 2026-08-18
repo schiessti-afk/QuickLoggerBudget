@@ -1,46 +1,47 @@
-# Implementation Plan: Sprint 8 — Stationery polish
+# Implementation Plan: Sprint 9 — Signed release
 
 ## Overview
 
-Make the Log screen match `assets/github-social-preview.png` as the shape / button-hierarchy / type reference, without adding taps, routes, or domain behavior. Two DESIGN rows are wrong before any Kotlin lands; those amendments are task 1. The rest is presentation-only: a theme `Shapes` scale, an explicit button-shape override (M3 buttons ignore the theme scale), filled receipt tiles, a side-by-side Save row, a divider, and bundled Inter.
+A git tag `v*` produces a minified, signed APK on GitHub Releases. Secrets never enter git. `assembleRelease` fails closed when credentials are missing. Debug/lint/test stay usable without a keystore.
 
 ## Architecture Decisions
 
-- **Docs first.** DESIGN §6 currently maps Save & Share to `FilledTonalButton` and §5.3 / §3 still say platform type. Those reversals land before Kotlin so no commit (and no working tree, once this sprint is committed) contradicts the spec.
-- **`small = 8.dp` is a pin, not a restyle.** FilterChip reads `shapes.small` (`CornerSmall`). The M3 default is already 8 dp ([Material 3 in Compose](https://developer.android.com/develop/ui/compose/designsystems/material3)); pinning it keeps category chips byte-identical. `CategoryChips.kt` is not touched.
-- **Buttons need a call-site `shape =`.** `ButtonDefaults.shape` resolves `CornerFull` → a hard-coded `CircleShape` that never reads `MaterialTheme.shapes` ([Shapes](https://kotlinlang.org/api/compose-multiplatform/material3/androidx.compose.material3/-shapes/-shapes.html): "by default, buttons use the shape style full"). The shared `QuickLoggerButtonShape` (`RoundedCornerShape(12.dp)`, matching `medium`) is passed at every `Button` / `OutlinedButton` site. `TextButton` / `IconButton` are out of scope.
-- **Inter is bundled, not downloaded.** OFL Regular / Medium / SemiBold from the official Inter 4.1 release, under `res/font/`. M3 `Typography` has no `defaultFontFamily` ([Material 3 in Compose](https://developer.android.com/develop/ui/compose/designsystems/material3)); each `TextStyle` gets `fontFamily = Inter`.
-- **No new tests.** Sprint 8 adds no domain behavior. Existing Compose assertions stay byte-identical; the JVM count stays 209.
+- **AGP 9.3 optimization DSL.** The project is on AGP 9.3.0. Official docs enable R8 with `optimization { enable = true }` on the release build type, which turns on code optimization and optimized resource shrinking together and includes the default Android keep rules. Source: [Enable app optimization with R8](https://developer.android.com/topic/performance/app-optimization/enable-app-optimization) and [AGP 9.3.0 release notes](https://developer.android.com/build/releases/agp-9-3-0-release-notes).
+- **Keep rules only as required.** Room, Kotlin, Hilt, and Compose ship consumer rules. Official R8 guidance treats manual `-keep class * extends androidx.room.RoomDatabase` as redundant and harmful. App keep files live under `src/main/keepRules/*.keep`. We do not copy library rules into the app.
+- **Fail closed.** AGP produces an unsigned APK when release has no `signingConfig`. `assembleRelease` / `bundleRelease` / `packageRelease` depend on a `requireReleaseSigning` task that fails if credentials are incomplete. Debug, lint, and JVM tests do not require a keystore.
+- **Credentials.** Local: `keystore.properties` at the repo root (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`). CI: env `QUICKLOGGER_STORE_FILE` / `QUICKLOGGER_STORE_PASSWORD` / `QUICKLOGGER_KEY_ALIAS` / `QUICKLOGGER_KEY_PASSWORD`. Env wins when all four are set. Incomplete sets fail at configuration.
+- **GitHub secrets (never in git).** `RELEASE_KEYSTORE_BASE64` (binary storeFile, [Base64 secret workaround](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions#storing-base64-binary-blobs-as-secrets)), `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`. Unset secrets are empty strings; the workflow checks that before assemble.
+- **Versioning.** `versionName` from the tag with the leading `v` stripped (`v1.0.0` → `1.0.0`), passed as `-PversionName`. `versionCode` is `${{ github.run_number }}` (ARCHITECTURE §13 allows run number). Untagged local defaults stay `0.1.0` / `1`.
+- **Release upload.** `gh release create` with `permissions: contents: write` and `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. GitHub CLI is preinstalled on hosted runners ([Using GitHub CLI in workflows](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/using-github-cli-in-workflows), [gh release create](https://cli.github.com/manual/gh_release_create)). No third-party release action.
+- **No tag in this change.** Wiring the pipeline is the sprint. Pushing `v1.0.0` is a human step after repository secrets exist.
 
 ## Task List
 
-### Phase 0: Spec change
-- [x] Task 1: DESIGN §3 / §5.3 / §6 / §7 / §10 match the sprint 8 In list
+### Phase 1: Gradle contract
+- [x] Task 1: JVM tests for gitignore, license, R8-on-release, fail-closed wording, workflow shape
+- [x] Task 2: `optimization { enable = true }`, signing from env/properties, `requireReleaseSigning`, keepRules source set
 
-### Phase 1: Theme
-- [x] Task 2: `Shape.kt` (`QuickLoggerShapes` + `QuickLoggerButtonShape`) wired through `Theme.kt`
-- [x] Task 3: Inter in `res/font/` + `QuickLoggerTypography`
+### Checkpoint: Fail closed
+- [x] `assembleRelease` without credentials fails
+- [x] `assembleDebug`, `lint`, `test` still succeed without a keystore
 
-### Checkpoint: Theme
-- [x] `assembleDebug` succeeds; no domain/data files touched
-
-### Phase 2: Log + remaining buttons
-- [x] Task 4: Log row, `OutlinedButton`, divider, receipt tiles, thumbnail `shapes.small`
-- [x] Task 5: `shape = QuickLoggerButtonShape` on Expense-edit `Button` / `OutlinedButton`
+### Phase 2: CI + docs
+- [x] Task 3: `.github/workflows/release.yml` on tags `v*`
+- [x] Task 4: ARCHITECTURE §13, README release section, Sprint 9 status
 
 ### Checkpoint: Sprint complete
-- [x] `lint`, `test` (213, no tests added), `assembleDebug` green
-- [x] No assertion edits in `LogScreenTest` / `DashboardScreenTest` / `ExpenseEditScreenTest`
-- [x] No schema, DAO, repository, use case, or ViewModel file modified
+- [x] Tests cover the new files; `lint` / `test` / `assembleDebug` green
+- [x] Throwaway-keystore `assembleRelease` succeeds; merged release manifest has no `INTERNET`
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Clickable `Surface` tiles split semantics so `onNodeWithContentDescription("Take photo")` no longer clicks | High (Compose tests fail) | Keep `contentDescription` on the `Icon` inside a clickable `Surface` so merge-descendants behaves like `IconButton` |
-| Labels wrap at 200% font scale | Low (exit criterion) | Do not relayout; show wrapping to a human |
-| Inter zip is large (32 MB) | Low | Extract only Regular / Medium / SemiBold + OFL |
+| Incomplete signingConfig still packages an unsigned APK | High (exit criterion) | Dedicated `requireReleaseSigning` task as a dependency of package/assemble/bundle Release |
+| R8 strips Hilt/Room | High (cold start crash) | First minify build with a throwaway keystore; add keep rules only if the build or runtime proves they are required |
+| Tagging without secrets | Medium | Workflow fails closed on empty secrets; do not tag from this change |
+| `optimization { enable }` DSL mismatch | Medium | Docs pin it for AGP 9.3; fall back to legacy `isMinifyEnabled` only if configure fails |
 
 ## Open Questions
 
-None blocking. The sprint's "§7 becomes `OutlinedButton`" refers to the Save & Share *row*, which lives in the §6 components table in the current DESIGN.md; both §6 and §7 are amended so they match the shipped code.
+None blocking. First GitHub Release still needs the four repository secrets and a human `git tag` / `git push --tags`.

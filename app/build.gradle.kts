@@ -1,4 +1,7 @@
+import org.gradle.api.GradleException
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.File
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -6,6 +9,10 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
+
+val versionNameOverride = providers.gradleProperty("versionName").orNull
+val versionCodeOverride = providers.gradleProperty("versionCode").orNull?.toInt()
+internal val releaseSigning = loadReleaseSigning()
 
 android {
     namespace = "com.quicklogger.app"
@@ -15,9 +22,33 @@ android {
         applicationId = "com.quicklogger.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = versionCodeOverride ?: 1
+        versionName = versionNameOverride ?: "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    releaseSigning?.let { signing ->
+        signingConfigs {
+            create("release") {
+                storeFile = signing.storeFile
+                storePassword = signing.storePassword
+                keyAlias = signing.keyAlias
+                keyPassword = signing.keyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // AGP 9.3: enables R8 code optimization and resource shrinking together.
+            // https://developer.android.com/topic/performance/app-optimization/enable-app-optimization
+            optimization {
+                enable = true
+            }
+            if (releaseSigning != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
 
     compileOptions {
@@ -116,4 +147,86 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+val requireReleaseSigning = tasks.register("requireReleaseSigning") {
+    // Credentials live in the environment / an untracked file. Without this,
+    // a successful signed build would mark the task UP-TO-DATE and the next
+    // assembleRelease with no secrets could package an unsigned APK.
+    outputs.upToDateWhen { false }
+    doLast {
+        if (releaseSigning == null) {
+            throw GradleException(
+                "assembleRelease requires signing credentials " +
+                    "(keystore.properties or QUICKLOGGER_STORE_FILE / " +
+                    "QUICKLOGGER_STORE_PASSWORD / QUICKLOGGER_KEY_ALIAS / " +
+                    "QUICKLOGGER_KEY_PASSWORD). Refusing to produce an unsigned APK.",
+            )
+        }
+    }
+}
+
+tasks.configureEach {
+    if (name == "assembleRelease" || name == "bundleRelease" || name == "packageRelease") {
+        dependsOn(requireReleaseSigning)
+    }
+}
+
+internal data class ReleaseSigning(
+    val storeFile: File,
+    val storePassword: String,
+    val keyAlias: String,
+    val keyPassword: String,
+)
+
+internal fun loadReleaseSigning(): ReleaseSigning? {
+    fun env(name: String): String? =
+        providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+
+    val envFile = env("QUICKLOGGER_STORE_FILE")
+    val envPassword = env("QUICKLOGGER_STORE_PASSWORD")
+    val envAlias = env("QUICKLOGGER_KEY_ALIAS")
+    val envKeyPassword = env("QUICKLOGGER_KEY_PASSWORD")
+    val envPresent = listOf(envFile, envPassword, envAlias, envKeyPassword).count { it != null }
+    if (envPresent == 4) {
+        return ReleaseSigning(
+            storeFile = resolveStoreFile(envFile!!),
+            storePassword = envPassword!!,
+            keyAlias = envAlias!!,
+            keyPassword = envKeyPassword!!,
+        )
+    }
+    if (envPresent > 0) {
+        throw GradleException(
+            "Release signing env vars are incomplete. Set all of QUICKLOGGER_STORE_FILE, " +
+                "QUICKLOGGER_STORE_PASSWORD, QUICKLOGGER_KEY_ALIAS, QUICKLOGGER_KEY_PASSWORD.",
+        )
+    }
+
+    val propsFile = rootProject.file("keystore.properties")
+    if (!propsFile.isFile) return null
+    val props = Properties()
+    propsFile.inputStream().use { props.load(it) }
+    val storeFile = props.getProperty("storeFile")?.takeIf { it.isNotBlank() }
+    val storePassword = props.getProperty("storePassword")?.takeIf { it.isNotBlank() }
+    val keyAlias = props.getProperty("keyAlias")?.takeIf { it.isNotBlank() }
+    val keyPassword = props.getProperty("keyPassword")?.takeIf { it.isNotBlank() }
+    val present = listOf(storeFile, storePassword, keyAlias, keyPassword).count { it != null }
+    if (present == 0) return null
+    if (present < 4) {
+        throw GradleException(
+            "keystore.properties is incomplete. Need storeFile, storePassword, keyAlias, keyPassword.",
+        )
+    }
+    return ReleaseSigning(
+        storeFile = resolveStoreFile(storeFile!!),
+        storePassword = storePassword!!,
+        keyAlias = keyAlias!!,
+        keyPassword = keyPassword!!,
+    )
+}
+
+internal fun resolveStoreFile(path: String): File {
+    val file = File(path)
+    return if (file.isAbsolute) file else rootProject.file(path)
 }

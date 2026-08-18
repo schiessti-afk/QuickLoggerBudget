@@ -1,0 +1,7 @@
+# Room, Kotlin metadata, Hilt, Compose, and AndroidX FileProvider ship
+# consumer keep rules in their AARs. Manual copies of those library rules are
+# redundant and stop R8 from optimizing generated database accessors.
+# https://developer.android.com/topic/performance/app-optimization/enable-app-optimization
+#
+# Add app-specific rules here only when a minified release build proves they
+# are required.
