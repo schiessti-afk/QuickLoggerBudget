@@ -54,6 +54,8 @@
     <string name="budget_meter_remaining_left">%1$s left</string>
     <string name="budget_meter_over_by">Over by %1$s</string>
     <string name="budget_meter_of_target">of %1$s</string>
+    <string name="budget_meter_spent_so_far">%1$s spent</string>
+    <string name="budget_meter_set_prompt">Tap to set a monthly budget</string>
     <string name="budget_meter_content_description">Monthly budget, %1$s</string>
     <string name="budget_bar_content_description">%1$s budget</string>
 </resources>

@@ -204,7 +204,6 @@ class DashboardViewModel @Inject constructor(
         locale: Locale,
     ): BudgetOverviewUiModel {
         val overallTarget = budgetTargets.firstOrNull { it.categoryId == null }
-        val meter = overallTarget?.let { target -> buildMeter(target, monthExpenses, locale) }
 
         val categoryTargetsById = budgetTargets.filter { it.categoryId != null }.associateBy { it.categoryId }
         val expensesByCategory = monthExpenses.groupBy { it.categoryId }
@@ -240,13 +239,40 @@ class DashboardViewModel @Inject constructor(
             )
         }
 
+        // The meter is discoverable the same way a bar is: spend-or-target, not
+        // target-only. Without this, there would be no tappable affordance to ever
+        // create the *first* overall target — bars already earn theirs from spend
+        // alone (above), and the total needs the same door in.
+        val meter = if (overallTarget != null || bars.isNotEmpty()) {
+            buildMeter(overallTarget, monthExpenses, locale)
+        } else {
+            null
+        }
+
         return BudgetOverviewUiModel(meter = meter, bars = bars)
     }
 
-    private fun buildMeter(target: BudgetTarget, monthExpenses: List<Expense>, locale: Locale): BudgetMeterUiModel {
+    private fun buildMeter(target: BudgetTarget?, monthExpenses: List<Expense>, locale: Locale): BudgetMeterUiModel {
+        if (target == null) {
+            // No overall target yet: same currency-choice rule as an untargeted bar.
+            val currencyCode = ExpenseTotals.byCurrency(monthExpenses).maxByOrNull { it.minor }?.currencyCode
+                ?: currencyCode()
+            val spentMinor = monthExpenses.filter { it.amount.currencyCode == currencyCode }.sumOf { it.amount.minor }
+            return BudgetMeterUiModel(
+                hasTarget = false,
+                fillRatio = 0f,
+                spentFormatted = MoneyFormatter.format(Money(spentMinor, currencyCode), locale),
+                remainingFormatted = null,
+                targetFormatted = null,
+                isOver = false,
+            )
+        }
+
         val progress = BudgetProgress.of(listOf(target), monthExpenses).single()
         return BudgetMeterUiModel(
+            hasTarget = true,
             fillRatio = progress.ratio.toFloat().coerceIn(0f, 1f),
+            spentFormatted = MoneyFormatter.format(progress.spent, locale),
             remainingFormatted = MoneyFormatter.format(
                 Money(abs(progress.remaining.minor), progress.remaining.currencyCode),
                 locale,

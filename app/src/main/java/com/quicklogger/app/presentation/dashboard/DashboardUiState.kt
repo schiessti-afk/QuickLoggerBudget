@@ -14,11 +14,19 @@ data class DashboardRowUiModel(
  * The overall monthly meter (DESIGN §4.2). [fillRatio] is clamped to `0f..1f` for the
  * arc sweep — the wedge never overdraws past a full circle — while [isOver] (which is
  * not clamped) is what actually drives the "over by" wording and the error color.
+ *
+ * [hasTarget] is false when no overall target is set yet but the meter is still
+ * shown — spend-or-target is what earns a category its bar, and the overall total
+ * needs the same "tap here to set one" affordance, or there would be no way to ever
+ * create the *first* overall target. In that state [remainingFormatted] /
+ * [targetFormatted] are null and [spentFormatted] carries the total instead.
  */
 data class BudgetMeterUiModel(
+    val hasTarget: Boolean,
     val fillRatio: Float,
-    val remainingFormatted: String,
-    val targetFormatted: String,
+    val spentFormatted: String,
+    val remainingFormatted: String?,
+    val targetFormatted: String?,
     val isOver: Boolean,
 )
 

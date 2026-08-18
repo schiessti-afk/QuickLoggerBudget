@@ -34,7 +34,11 @@ import com.quicklogger.app.presentation.theme.categoryStyleFor
 
 /**
  * The overall monthly meter (DESIGN §4.2): a hand-drawn arc, no charting library
- * (DESIGN §6). Tapping it opens the overall target dialog.
+ * (DESIGN §6). Tapping it opens the overall target dialog — including when
+ * [BudgetMeterUiModel.hasTarget] is false, which is what lets the *first* overall
+ * target ever get created: the meter is shown (empty ring, spend total, a "set a
+ * budget" prompt) as soon as there's any spend or category target to justify drawing
+ * the overview at all, the same "spend-or-target" rule a category bar already uses.
  */
 @Composable
 fun BudgetMeter(
@@ -44,19 +48,23 @@ fun BudgetMeter(
 ) {
     val statusColor = budgetStatusColor(meter.isOver)
     val trackColor = MaterialTheme.colorScheme.outline
-    val remainingLabel = if (meter.isOver) {
-        stringResource(R.string.budget_meter_over_by, meter.remainingFormatted)
-    } else {
-        stringResource(R.string.budget_meter_remaining_left, meter.remainingFormatted)
+    val centerLabel = when {
+        !meter.hasTarget -> stringResource(R.string.budget_meter_spent_so_far, meter.spentFormatted)
+        meter.isOver -> stringResource(R.string.budget_meter_over_by, meter.remainingFormatted!!)
+        else -> stringResource(R.string.budget_meter_remaining_left, meter.remainingFormatted!!)
     }
-    val ofTarget = stringResource(R.string.budget_meter_of_target, meter.targetFormatted)
+    val subLabel = if (meter.hasTarget) {
+        stringResource(R.string.budget_meter_of_target, meter.targetFormatted!!)
+    } else {
+        stringResource(R.string.budget_meter_set_prompt)
+    }
 
     Column(
         modifier = modifier
             .size(176.dp)
             .clip(CircleShape)
             .clickable(
-                onClickLabel = stringResource(R.string.budget_meter_content_description, remainingLabel),
+                onClickLabel = stringResource(R.string.budget_meter_content_description, centerLabel),
                 role = Role.Button,
                 onClick = onClick,
             )
@@ -91,14 +99,14 @@ fun BudgetMeter(
             }
         }
         Text(
-            text = remainingLabel,
+            text = centerLabel,
             style = MaterialTheme.typography.titleMedium,
-            color = if (meter.isOver) statusColor else MaterialTheme.colorScheme.onSurface,
+            color = if (meter.hasTarget && meter.isOver) statusColor else MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = ofTarget,
+            text = subLabel,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,

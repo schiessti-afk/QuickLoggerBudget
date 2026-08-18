@@ -53,10 +53,13 @@ Apply this on top of that sprint’s exit criteria. A sprint that meets its feat
            7 Targets and dashboard
                 │
                 ▼
-           8 Signed release     ← MVP
+           8 Stationery polish
+                │
+                ▼
+           9 Signed release     ← MVP
 ```
 
-Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but not in parallel on the same Room schema without a single owner for migrations. Sprint 5 depends on 3 (receipt on the share intent) and 4 (period list). Sprints 6, 7, and 8 are sequential after 5. Sprint 7 owns the v1 → v2 migration; nothing else may change the schema while it is in flight.
+Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but not in parallel on the same Room schema without a single owner for migrations. Sprint 5 depends on 3 (receipt on the share intent) and 4 (period list). Sprints 6, 7, 8, and 9 are sequential after 5. Sprint 7 owns the v1 → v2 migration; nothing else may change the schema while it is in flight. Sprint 8 is presentation-only and touches no schema, DAO, ViewModel, or use case.
 
 ---
 
@@ -289,7 +292,49 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ---
 
-## Sprint 8 — Signed release
+## Sprint 8 — Stationery polish
+
+**Outcome:** The Log screen matches `assets/github-social-preview.png`. The render is treated as the reference for shape, button hierarchy, and type; where it disagrees with DESIGN, DESIGN is amended in the same commit rather than left stale.
+
+**Spec change first.** Two DESIGN rows are wrong before this sprint starts, and correcting them is task 1, not cleanup afterwards:
+
+- §7 prescribes `FilledTonalButton` for Save & Share. The render shows an outlined button — wax hairline, wax label, no fill. §7 becomes `OutlinedButton`.
+- §6 specifies 8 dp corners for the receipt thumbnail; `ReceiptAttachment` hardcodes 4 dp. The code moves to the documented value, not the reverse.
+
+**In**
+
+- A `Shapes` scale (`Shape.kt`, wired through `Theme.kt`): `small = 8.dp` **pinned to the M3 default** so category chips are provably unchanged, `medium = 12.dp`, `large = 16.dp`. Satisfies DESIGN §2's "soft paper corners, not stadium-pill candy" for cards and dialogs.
+- A shared button-shape constant, passed explicitly as `shape =` at every `Button` / `OutlinedButton` call site. This is **not** optional sugar: `ButtonDefaults.shape` resolves `ButtonSmallTokens.ContainerShapeRound` → `ShapeKeyTokens.CornerFull`, and `Shapes.fromToken` maps `CornerFull` to a hard-coded `CircleShape` that never reads the theme's scale. Buttons stay pills unless each call site overrides.
+- Receipt camera/gallery become filled tiles: `Surface`, 56 dp, `surfaceContainer` fill, `shapes.medium`, ink glyph. Existing `onClick` and `contentDescription` pass through untouched; the touch target grows 48 → 56 dp.
+- Receipt thumbnail radius 4 dp → `shapes.small`, per the §6 correction above.
+- Save and Save & Share move into one `Row`, each `weight(1f)`, at every width and font scale. Save stays `Button`; Save & Share becomes `OutlinedButton` with a primary border and primary label. Both keep the existing `canSave` gate.
+- A `HorizontalDivider` (`outline`, reduced alpha) between the category block and the receipt strip.
+- Inter bundled in `res/font/` (OFL; Regular / Medium / SemiBold) and wired into `QuickLoggerTypography`. Inter ships true tabular figures, so `AmountField`'s `fontFeatureSettings = "tnum"` (DESIGN §5.3) keeps working — a face without them would silently no-op that line and reintroduce the jitter it exists to prevent.
+
+**Out**
+
+- **Category chip colors.** DESIGN §5.2 stands as written: accent-tinted outline and pictogram when unselected, accent at ~24% when selected. The render shows monochrome ink pictograms and its §6 generation prompt asked for them, but the accents are wanted and `CategoryChips` is not touched by this sprint.
+- The render's wax-seal emblem on Save. No `ic_seal` asset exists; the button ships as plain text and the emblem stays available as a later one-line change.
+- The render's borderless amount display. `AmountField` keeps its `OutlinedTextField`, floating label, and `supportingText` — the error copy lives there.
+- Restyling the `+` chip. It falls through to M3 defaults and reads quieter than the six category chips; that is correct for an action that is not a category and not in the radio group.
+- The attached-receipt row's structure (thumbnail + label + remove). The render only shows the empty state; only its corner radius changes.
+- Dark theme, Material You, downloadable fonts, any new dependency, any new screen or tap.
+
+**Exit criteria**
+
+- [ ] No `Button` or `OutlinedButton` in the app renders as a full stadium pill; each passes an explicit shape.
+- [ ] Category chips are byte-identical in appearance to sprint 7 — same accents, same outlines, same 8 dp corners.
+- [ ] Save and Save & Share sit in one row at equal width, and both remain tappable and correctly gated at 200% font scale. If the labels wrap or ellipsize there, that is shown to a human and accepted explicitly, not silently relayouted.
+- [ ] Camera and gallery read as filled tiles, keep their content descriptions, and have a touch target ≥ 48 dp.
+- [ ] Inter is the rendered face on every screen, and a typed amount does not jitter as digits and separators are added.
+- [ ] `LogScreenTest`, `DashboardScreenTest`, and `ExpenseEditScreenTest` pass with **no assertion edits** — every label and content description this sprint touches is preserved. An assertion that must change means the change went further than presentation.
+- [ ] DESIGN §6 and §7 match the shipped code. No commit leaves the doc contradicting it.
+- [ ] `lint`, `test`, and `assembleDebug` are green, with the JVM test count unchanged from sprint 7 (this sprint adds no domain behavior).
+- [ ] No schema, DAO, repository, use case, or ViewModel file is modified.
+
+---
+
+## Sprint 9 — Signed release
 
 **Outcome:** A git tag `v*` produces a minified, signed APK on GitHub Releases. Secrets never enter git. `main` stays releasable.
 
@@ -316,7 +361,7 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## MVP is done when
 
-All eight sprints’ exit criteria are checked, and ARCHITECTURE §16 holds:
+All nine sprints’ exit criteria are checked, and ARCHITECTURE §16 holds:
 
 - An implementer can explain the tree from ARCHITECTURE §4 without a second pattern.
 - The log path is open → type amount → tap category → optional receipt → save. No extra screen.
@@ -352,5 +397,8 @@ Those need a spec change in IDEA and ARCHITECTURE before they get a sprint.
 5. One `:app` module for the whole sequence.
 6. Sprint 7 is the only sprint allowed to change the Room schema after v1 shipped. Its approval (ARCHITECTURE §15) does not extend to a v3.
 7. Signed release moves from sprint 7 to sprint 8 unchanged — its content was not renegotiated, only renumbered.
+8. Signed release moves again, from sprint 8 to sprint 9, on the same terms: sprint 8 was inserted ahead of it and its content is untouched.
+9. Sprint 8 is presentation-only. It is a real sprint rather than a tail on sprint 6 because it reverses two DESIGN decisions (§6, §7) and those reversals need review, not because the diff is large.
+10. The GitHub social preview is treated as a design reference, not decoration. Where it and DESIGN disagree, the disagreement is resolved in writing — the render does not silently win.
 
 → Correct these if they are wrong; the sprint boundaries should change before implementation, not after.

@@ -31,7 +31,7 @@ These are already decided. Visual work may only *express* them.
 | Amount focused + keyboard up on launch | The amount is the hero. Everything else is secondary. |
 | Category chips in radio mode | Chips must read as a single selection, default-visible on a typical phone. |
 | Dashboard is a top-bar list action on Log | App bars stay thin. The dashboard is a destination, not a tab. It carries a back arrow to Log. |
-| An unset budget is invisible | No meter, no placeholder bar, no "set a budget" prompt. The screen must look finished with zero targets. |
+| An untouched budget is invisible | With zero targets *and* zero spend this month, no meter, no bar, no prompt — the screen looks finished. Once there is spend or a target anywhere, the meter and any earned bars *do* show a "tap to set a budget" affordance for whichever half (overall/category) is still unset — otherwise the first target could never be created. |
 | Empty history is a short line, not a marketing screen | One illustration; copy stays one sentence. |
 | English UI strings; numbers/dates follow device locale | Layouts must survive long currency strings (`R$ 1.234,56`, `$1,234.56`). |
 | Material 3 + Compose | Tokens, components, and shapes come from M3. Custom art sits *on* that system. |
@@ -336,7 +336,7 @@ This design is doing its job when:
 - [ ] Each seeded category chip shows its pictogram and accent; selected state stays readable (ink label).
 - [ ] Launcher fold, top-bar glyph, empty state, and six pictograms look like one ink family.
 - [ ] No generated asset is required to complete a save.
-- [ ] With no targets set, Log and the dashboard look exactly as they did before sprint 7 — no empty meter, no prompt.
+- [ ] With no targets set and nothing spent this month, Log and the dashboard look exactly as they did before sprint 7 — no meter, no bar, no prompt.
 - [ ] Green and red appear only on budget surfaces (§5.4). No logged amount is ever tinted.
 - [ ] Over-budget is legible in grayscale, because the wording changes too.
 - [ ] Implementers can theme Compose from this file without inventing a second palette.

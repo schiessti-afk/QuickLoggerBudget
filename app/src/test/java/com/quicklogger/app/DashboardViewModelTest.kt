@@ -285,7 +285,68 @@ class DashboardViewModelTest {
         advanceUntilIdle()
 
         val meter = requireNotNull(viewModel.uiState.value.overview.meter)
+        assertTrue(meter.hasTarget)
         assertFalse(meter.isOver)
+        assertEquals("$500.00", meter.targetFormatted)
+    }
+
+    @Test
+    fun theMeterAppearsFromSpendAloneWithNoOverallTargetYet() = runTest {
+        // The bug this guards: without an affordance that appears from spend alone,
+        // there is no way to ever create the *first* overall target.
+        val thisMonth = expense(1L, now, minor = 4_500)
+        val viewModel = viewModel(listOf(thisMonth))
+        keepUiStateAlive(viewModel)
+        advanceUntilIdle()
+
+        val meter = requireNotNull(viewModel.uiState.value.overview.meter)
+        assertFalse(meter.hasTarget)
+        assertEquals("$45.00", meter.spentFormatted)
+        assertNull(meter.remainingFormatted)
+        assertNull(meter.targetFormatted)
+    }
+
+    @Test
+    fun theMeterAppearsFromACategoryTargetAloneWithNoSpendAndNoOverallTarget() = runTest {
+        val viewModel = viewModel(emptyList(), budgetTargets = listOf(BudgetTarget(food.id, Money(5_000, "USD"))))
+        keepUiStateAlive(viewModel)
+        advanceUntilIdle()
+
+        val meter = requireNotNull(viewModel.uiState.value.overview.meter)
+        assertFalse(meter.hasTarget)
+        assertEquals("$0.00", meter.spentFormatted)
+    }
+
+    @Test
+    fun tappingTheMeterWithNoOverallTargetYetStillOpensTheOverallDialog() = runTest {
+        val thisMonth = expense(1L, now, minor = 4_500)
+        val viewModel = viewModel(listOf(thisMonth))
+        keepUiStateAlive(viewModel)
+        advanceUntilIdle()
+
+        viewModel.onEvent(DashboardEvent.EditBudgetTarget(null))
+        advanceUntilIdle()
+
+        val dialog = requireNotNull(viewModel.uiState.value.targetDialog)
+        assertNull(dialog.categoryId)
+        assertNull(dialog.categoryName)
+        assertEquals("", dialog.amountDigits)
+    }
+
+    @Test
+    fun settingTheOverallTargetFromTheNoTargetMeterStateMakesItHaveOne() = runTest {
+        val thisMonth = expense(1L, now, minor = 4_500)
+        val viewModel = viewModel(listOf(thisMonth))
+        keepUiStateAlive(viewModel)
+        advanceUntilIdle()
+        viewModel.onEvent(DashboardEvent.EditBudgetTarget(null))
+        viewModel.onEvent(DashboardEvent.BudgetTargetAmountChanged("50000"))
+
+        viewModel.onEvent(DashboardEvent.ConfirmBudgetTarget)
+        advanceUntilIdle()
+
+        val meter = requireNotNull(viewModel.uiState.value.overview.meter)
+        assertTrue(meter.hasTarget)
         assertEquals("$500.00", meter.targetFormatted)
     }
 
