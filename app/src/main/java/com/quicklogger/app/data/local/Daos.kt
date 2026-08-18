@@ -61,3 +61,32 @@ interface ExpenseDao {
     )
     suspend fun reassignCategory(fromId: Long, toId: Long, updatedAtEpochMs: Long)
 }
+
+/**
+ * Plain CRUD only — the get-then-insert-or-update "upsert" logic lives in
+ * `RoomBudgetTargetRepository.withTransaction`, mirroring how [CategoryDao] stays
+ * simple and [RoomCategoryRepository] owns the multi-step work.
+ */
+@Dao
+interface BudgetTargetDao {
+    @Query("SELECT * FROM budget_targets ORDER BY categoryId IS NULL DESC, categoryId ASC")
+    fun observeAll(): Flow<List<BudgetTargetEntity>>
+
+    @Query("SELECT * FROM budget_targets WHERE categoryId IS NULL")
+    suspend fun getOverall(): BudgetTargetEntity?
+
+    @Query("SELECT * FROM budget_targets WHERE categoryId = :categoryId")
+    suspend fun getForCategory(categoryId: Long): BudgetTargetEntity?
+
+    @Insert
+    suspend fun insert(target: BudgetTargetEntity): Long
+
+    @Update
+    suspend fun update(target: BudgetTargetEntity)
+
+    @Query("DELETE FROM budget_targets WHERE categoryId IS NULL")
+    suspend fun deleteOverall()
+
+    @Query("DELETE FROM budget_targets WHERE categoryId = :categoryId")
+    suspend fun deleteForCategory(categoryId: Long)
+}

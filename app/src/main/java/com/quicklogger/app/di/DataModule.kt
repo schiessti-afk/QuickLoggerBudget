@@ -2,15 +2,19 @@ package com.quicklogger.app.di
 
 import android.content.Context
 import androidx.room.Room
+import com.quicklogger.app.data.local.BudgetTargetDao
 import com.quicklogger.app.data.local.CategoryDao
 import com.quicklogger.app.data.local.ExpenseDao
+import com.quicklogger.app.data.local.MIGRATION_1_2
 import com.quicklogger.app.data.local.QuickLoggerDatabase
 import com.quicklogger.app.data.local.SeedCategoriesCallback
 import com.quicklogger.app.data.export.CsvFileStore
 import com.quicklogger.app.data.preferences.SharedPreferencesLastCategoryStore
 import com.quicklogger.app.data.receipt.ReceiptFileStore
+import com.quicklogger.app.data.repository.RoomBudgetTargetRepository
 import com.quicklogger.app.data.repository.RoomCategoryRepository
 import com.quicklogger.app.data.repository.RoomExpenseRepository
+import com.quicklogger.app.domain.repository.BudgetTargetRepository
 import com.quicklogger.app.domain.repository.CategoryRepository
 import com.quicklogger.app.domain.repository.CsvExportStore
 import com.quicklogger.app.domain.repository.ExpenseRepository
@@ -35,6 +39,7 @@ object DatabaseModule {
     fun provideDatabase(@ApplicationContext context: Context): QuickLoggerDatabase =
         Room.databaseBuilder(context, QuickLoggerDatabase::class.java, QuickLoggerDatabase.NAME)
             .addCallback(SeedCategoriesCallback)
+            .addMigrations(MIGRATION_1_2)
             .build()
 
     @Provides
@@ -42,6 +47,9 @@ object DatabaseModule {
 
     @Provides
     fun provideExpenseDao(database: QuickLoggerDatabase): ExpenseDao = database.expenseDao()
+
+    @Provides
+    fun provideBudgetTargetDao(database: QuickLoggerDatabase): BudgetTargetDao = database.budgetTargetDao()
 
     /** Injected so use cases can be tested against a fixed instant. */
     @Provides
@@ -68,6 +76,9 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindCategoryRepository(impl: RoomCategoryRepository): CategoryRepository
+
+    @Binds
+    abstract fun bindBudgetTargetRepository(impl: RoomBudgetTargetRepository): BudgetTargetRepository
 
     @Binds
     abstract fun bindLastCategoryStore(

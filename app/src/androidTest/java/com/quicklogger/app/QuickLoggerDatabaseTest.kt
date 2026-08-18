@@ -3,6 +3,7 @@ package com.quicklogger.app
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.quicklogger.app.data.local.BudgetTargetEntity
 import com.quicklogger.app.data.local.ExpenseEntity
 import com.quicklogger.app.data.local.QuickLoggerDatabase
 import com.quicklogger.app.data.local.SeedCategoriesCallback
@@ -228,5 +229,77 @@ class QuickLoggerDatabaseTest {
 
         assertEquals(null, database.categoryDao().getById(food.id))
         assertTrue(database.expenseDao().observeAllNewestFirst().first().all { it.categoryId == other.id })
+    }
+
+    // --- sprint 7: budget targets (ARCHITECTURE §6.5, §7.1) ---
+
+    @Test
+    fun insertingAnOverallTargetRoundTrips() = runTest {
+        val id = database.budgetTargetDao().insert(
+            BudgetTargetEntity(categoryId = null, amountMinor = 50_000, currencyCode = "USD"),
+        )
+
+        val stored = database.budgetTargetDao().getOverall()!!
+        assertEquals(id, stored.id)
+        assertEquals(50_000L, stored.amountMinor)
+        assertEquals(null, stored.categoryId)
+    }
+
+    @Test
+    fun insertingACategoryTargetRoundTrips() = runTest {
+        val food = foodCategory()
+        database.budgetTargetDao().insert(BudgetTargetEntity(categoryId = food.id, amountMinor = 5_000, currencyCode = "USD"))
+
+        val stored = database.budgetTargetDao().getForCategory(food.id)!!
+        assertEquals(5_000L, stored.amountMinor)
+    }
+
+    @Test
+    fun aSecondTargetForTheSameCategoryViolatesTheUniqueIndex() = runTest {
+        val food = foodCategory()
+        database.budgetTargetDao().insert(BudgetTargetEntity(categoryId = food.id, amountMinor = 5_000, currencyCode = "USD"))
+
+        val secondInsert = runCatching {
+            database.budgetTargetDao().insert(BudgetTargetEntity(categoryId = food.id, amountMinor = 9_000, currencyCode = "USD"))
+        }
+
+        assertTrue("the unique index on categoryId should reject a second row", secondInsert.isFailure)
+    }
+
+    @Test
+    fun deletingACategoryCascadesToItsTarget() = runTest {
+        val food = foodCategory()
+        database.budgetTargetDao().insert(BudgetTargetEntity(categoryId = food.id, amountMinor = 5_000, currencyCode = "USD"))
+
+        // Mirrors RoomCategoryRepository.delete: reassign expenses, then delete the row.
+        // The target has no expenses to reassign — it is simply gone with the category.
+        database.categoryDao().deleteUnprotected(food.id)
+
+        assertEquals(null, database.budgetTargetDao().getForCategory(food.id))
+        assertTrue(database.budgetTargetDao().observeAll().first().none { it.categoryId == food.id })
+    }
+
+    @Test
+    fun deletingTheOverallTargetLeavesCategoryTargetsAlone() = runTest {
+        val food = foodCategory()
+        database.budgetTargetDao().insert(BudgetTargetEntity(categoryId = null, amountMinor = 50_000, currencyCode = "USD"))
+        database.budgetTargetDao().insert(BudgetTargetEntity(categoryId = food.id, amountMinor = 5_000, currencyCode = "USD"))
+
+        database.budgetTargetDao().deleteOverall()
+
+        assertEquals(null, database.budgetTargetDao().getOverall())
+        assertTrue(database.budgetTargetDao().getForCategory(food.id) != null)
+    }
+
+    @Test
+    fun deletingACategoryTargetLeavesTheOverallTargetAlone() = runTest {
+        val food = foodCategory()
+        database.budgetTargetDao().insert(BudgetTargetEntity(categoryId = null, amountMinor = 50_000, currencyCode = "USD"))
+        database.budgetTargetDao().insert(BudgetTargetEntity(categoryId = food.id, amountMinor = 5_000, currencyCode = "USD"))
+
+        database.budgetTargetDao().deleteForCategory(food.id)
+
+        assertTrue(database.budgetTargetDao().getOverall() != null)
+        assertEquals(null, database.budgetTargetDao().getForCategory(food.id))
     }
 }

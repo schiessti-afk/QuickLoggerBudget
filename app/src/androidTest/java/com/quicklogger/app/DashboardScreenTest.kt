@@ -5,10 +5,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.quicklogger.app.domain.model.Period
-import com.quicklogger.app.presentation.history.HistoryEvent
-import com.quicklogger.app.presentation.history.HistoryRowUiModel
-import com.quicklogger.app.presentation.history.HistoryScreenContent
-import com.quicklogger.app.presentation.history.HistoryUiState
+import com.quicklogger.app.presentation.dashboard.DashboardEvent
+import com.quicklogger.app.presentation.dashboard.DashboardRowUiModel
+import com.quicklogger.app.presentation.dashboard.DashboardScreenContent
+import com.quicklogger.app.presentation.dashboard.DashboardUiState
 import com.quicklogger.app.presentation.theme.QuickLoggerTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -16,17 +16,17 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class HistoryScreenTest {
+class DashboardScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
 
     private fun setContent(
-        state: HistoryUiState,
-        onEvent: (HistoryEvent) -> Unit = {},
+        state: DashboardUiState,
+        onEvent: (DashboardEvent) -> Unit = {},
         onEditExpense: (Long) -> Unit = {},
     ) = composeRule.setContent {
         QuickLoggerTheme {
-            HistoryScreenContent(
+            DashboardScreenContent(
                 uiState = state,
                 onEvent = onEvent,
                 onNavigateUp = {},
@@ -38,7 +38,7 @@ class HistoryScreenTest {
 
     @Test
     fun emptyStateShowsWhenThereAreNoRows() {
-        setContent(HistoryUiState())
+        setContent(DashboardUiState())
 
         composeRule.onNodeWithText("No expenses in this period.").assertExists()
     }
@@ -46,9 +46,9 @@ class HistoryScreenTest {
     @Test
     fun rowsRenderAmountCategoryAndDate() {
         setContent(
-            HistoryUiState(
+            DashboardUiState(
                 rows = listOf(
-                    HistoryRowUiModel(1L, "$45.00", "Food", "8/17/26, 2:32 PM", hasReceipt = false),
+                    DashboardRowUiModel(1L, "$45.00", "Food", "8/17/26, 2:32 PM", hasReceipt = false),
                 ),
             ),
         )
@@ -58,21 +58,21 @@ class HistoryScreenTest {
 
     @Test
     fun tappingAPeriodChipEmitsPeriodSelected() {
-        val events = mutableListOf<HistoryEvent>()
-        setContent(HistoryUiState(period = Period.DAY), onEvent = { events += it })
+        val events = mutableListOf<DashboardEvent>()
+        setContent(DashboardUiState(period = Period.DAY), onEvent = { events += it })
 
         composeRule.onNodeWithText("Week").performClick()
 
-        assertEquals(listOf(HistoryEvent.PeriodSelected(Period.WEEK)), events)
+        assertEquals(listOf(DashboardEvent.PeriodSelected(Period.WEEK)), events)
     }
 
     @Test
     fun tappingARowNavigatesToEdit() {
         var tapped: Long? = null
         setContent(
-            HistoryUiState(
+            DashboardUiState(
                 rows = listOf(
-                    HistoryRowUiModel(7L, "$45.00", "Food", "8/17/26, 2:32 PM", hasReceipt = false),
+                    DashboardRowUiModel(7L, "$45.00", "Food", "8/17/26, 2:32 PM", hasReceipt = false),
                 ),
             ),
             onEditExpense = { tapped = it },
@@ -85,9 +85,20 @@ class HistoryScreenTest {
 
     @Test
     fun totalsRenderAboveTheList() {
-        setContent(HistoryUiState(totalsFormatted = listOf("$45.00", "R$10.00")))
+        setContent(DashboardUiState(totalsFormatted = listOf("$45.00", "R$10.00")))
 
         composeRule.onNodeWithText("$45.00").assertExists()
         composeRule.onNodeWithText("R$10.00").assertExists()
+    }
+
+    // --- budget overview (sprint 7) ---
+
+    @Test
+    fun noOverviewIsDrawnWhenNoTargetsAndNoSpend() {
+        setContent(DashboardUiState())
+
+        // The screen is then byte-for-byte the old History (DESIGN §4.2): no meter,
+        // no bar, just the period chips and the (empty) list.
+        composeRule.onNodeWithText("Monthly budget").assertDoesNotExist()
     }
 }

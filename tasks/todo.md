@@ -1,71 +1,52 @@
-# Sprint 6 tasks
+# Sprint 7 tasks
 
-- [x] Task 1: Launcher fold (`ic_launcher_foreground`, `ic_launcher_monochrome`)
-  - Acceptance: reads as a folded receipt (crease + tally lines + dog-eared corner) inside the adaptive-icon safe zone; monochrome variant is a single-color silhouette for themed icons
-  - Verify: `assembleDebug` green (resource compiles); visual read needs a device
-  - Files: `res/drawable/{ic_launcher_foreground,ic_launcher_monochrome}.xml`
+- [x] Task 1: Spec change (IDEA, ARCHITECTURE, DESIGN, Sprint.md)
+  - Acceptance: budgets moved from out-of-scope to in-scope MVP; schema-change approval recorded; dashboard rename and status-color exception documented
+  - Verify: docs commit lands before any Kotlin
+  - Files: `docs/IDEA.md`, `docs/ARCHITECTURE.md`, `docs/DESIGN.md`, `docs/Sprint.md`
 
-- [x] Task 2: Top-bar glyph (`ic_toolbar_receipt`)
-  - Acceptance: same silhouette as the launcher, 24×24 viewport, single color (tintable)
-  - Verify: wired into Log's `TopAppBar` title row
-  - Files: `res/drawable/ic_toolbar_receipt.xml`, `presentation/log/LogScreen.kt`
+- [x] Task 2: Domain — `BudgetTarget`, `BudgetProgress`, repository interface, use cases
+  - Acceptance: `BudgetProgress.of` excludes mismatched currencies rather than converting them; `remainingIncludingPending` backs the Log live line; `SetBudgetTarget` refuses non-positive amounts, `ClearBudgetTarget` removes a row
+  - Verify: `BudgetProgressTest` (11 tests), `BudgetTargetUseCasesTest` (11 tests)
+  - Files: `domain/model/{BudgetTarget,BudgetProgress}.kt`, `domain/repository/BudgetTargetRepository.kt`, `domain/usecase/{BudgetError,BudgetTargetUseCases}.kt`
 
-- [x] Task 3: Six category pictograms
-  - Acceptance: each is single-color, 24×24, distinct silhouette per DESIGN §8.5's description (coffee cup, bus, open carton, light bulb, tote bag, asterisk-in-square)
-  - Verify: `CategoryStyleTest` — each seeded name resolves to a distinct pictogram resource id
-  - Files: `res/drawable/ic_category_{food,transport,supplies,utilities,personal,other}.xml`
+- [x] Task 3: Data — schema v2, `Migration(1, 2)`, `BudgetTargetDao`, `RoomBudgetTargetRepository`
+  - Acceptance: `budget_targets` FK to `categories` is `ON DELETE CASCADE`; unique index enforces one row per category; the overall (`categoryId IS NULL`) row is kept singular by upsert-by-null in the repository, not the index (SQLite treats NULLs as distinct)
+  - Verify: `QuickLoggerDatabaseTest` DAO/cascade tests (6 new, 20 total, 0 failures on device); `DatabaseMigrationTest` against committed `1.json` (3 tests, 0 failures on device)
+  - Files: `data/local/{Entities,Daos,QuickLoggerDatabase,Mappers}.kt`, `data/repository/RoomBudgetTargetRepository.kt`, `di/DataModule.kt`, `app/schemas/.../2.json`
 
-- [x] Task 4: Empty-History illustration
-  - Acceptance: folded receipt + wax seal + closed ledger, baked cream/wax/ink palette, lots of negative space, no checklist
-  - Verify: wired above the existing one-line `history_empty` string
-  - Files: `res/drawable/ic_empty_history.xml`, `presentation/history/HistoryScreen.kt`
+- [x] Task 4: Log — live remaining-budget line
+  - Acceptance: reflects the digit buffer, not the pre-entry balance; each half (category/month) renders only if that target exists; reads "over by …" past target; never blocks Save
+  - Verify: `LogViewModelTest` (8 new tests covering both segments, over, foreign currency, clearing)
+  - Files: `presentation/log/{LogViewModel,LogUiState,LogScreen}.kt`, `res/values/strings.xml`
 
-- [x] Task 5: Camera/gallery action glyphs
-  - Acceptance: single-color, same stroke weight as the pictograms; documented deviation from "Material Symbols" (no `material-icons-extended` dependency added)
-  - Verify: wired into `ReceiptAttachment`; `LogScreenTest`'s content-description assertions still pass compilation
-  - Files: `res/drawable/ic_action_{camera,gallery}.xml`, `presentation/components/ReceiptAttachment.kt`
+- [x] Task 5: Rename `history` → `dashboard`
+  - Acceptance: same screen, same list/share/CSV behavior; route, package, and every type renamed; Log's top-bar list glyph unchanged (no new tap)
+  - Verify: `DashboardScreenTest` (renamed from `HistoryScreenTest`), `DashboardViewModelTest` (renamed from `HistoryViewModelTest`) — list/period/share/CSV tests all still pass
+  - Files: `presentation/dashboard/` (moved from `presentation/history/`), `presentation/navigation/{Routes,QuickLoggerNavHost}.kt`
 
-- [x] Task 6: `CategoryStyle.kt`
-  - Acceptance: each of the six seeded names resolves to a distinct accent + pictogram; any other name (including every custom category) resolves to Other's — never a lookup miss
-  - Verify: `CategoryStyleTest` — 5 tests green
-  - Files: `presentation/theme/CategoryStyle.kt`
+- [x] Task 6: Dashboard — budget overview (meter + bars + target dialog)
+  - Acceptance: nothing set and nothing spent draws neither the meter nor a bar (screen is then byte-for-byte the old History); overview is always the current calendar month regardless of the period chips; tapping the meter/a bar opens a dialog reusing Log's digit-buffer field; bar fill is the category accent, only the over-target segment turns error-red
+  - Verify: `DashboardViewModelTest` (12 new overview/dialog tests)
+  - Files: `presentation/components/BudgetOverview.kt`, `presentation/dashboard/{DashboardViewModel,DashboardUiState,DashboardEvent,BudgetTargetDialog,DashboardScreen}.kt`
 
-- [x] Task 7: `CategoryChips` — pictogram + accent + selected-state contrast
-  - Acceptance: unselected chip shows an accent-tinted outline and pictogram on a cream fill; selected chip fills to ~24% accent with an accent border; the label is `onSurface` ink in both states, never white-on-accent
-  - Verify: existing `LogScreenTest` chip-selection assertions (label text, click behavior) still hold — pictogram is decorative (`contentDescription = null`)
-  - Files: `presentation/components/CategoryChips.kt`
+- [x] Task 7: Theme — ledger green + status color helper
+  - Acceptance: `LEDGER_GREEN` is a `BrandColors` constant, not wired into `QuickLoggerColorScheme` (no green `ColorScheme`, not mapped to `tertiary`); `budgetStatusColor(isOver)` is the only place that picks between it and `error`
+  - Verify: `assembleDebug`; used only by `BudgetOverview.kt`
+  - Files: `presentation/theme/{BrandColors,BudgetStatusColor}.kt`
 
-- [x] Task 8: Log top bar + Save & Share button style
-  - Acceptance: 24 dp glyph precedes the "QuickLogger" title; Save stays `Button`, Save & Share becomes `FilledTonalButton` per DESIGN §6's component table
-  - Verify: `assembleDebug`; no new tap added to the primary path
-  - Files: `presentation/log/LogScreen.kt`
-
-- [x] Task 9: `ReceiptAttachment` icon buttons
-  - Acceptance: camera/gallery are `IconButton`s (48 dp touch target by default) with `contentDescription`, not visible-text buttons
-  - Verify: `LogScreenTest` — 3 assertions moved from `onNodeWithText` to `onNodeWithContentDescription`, same accessible names
-  - Files: `presentation/components/ReceiptAttachment.kt`, `androidTest/.../LogScreenTest.kt`
-
-- [x] Task 10: History row pictogram + empty-state illustration
-  - Acceptance: each row shows a 16 dp accent-tinted pictogram before "category · date"; empty state shows the illustration above the unchanged one-sentence copy
-  - Verify: `assembleDebug`; existing `HistoryScreenTest` text assertion (`"No expenses in this period."`) still holds
-  - Files: `presentation/history/HistoryScreen.kt`
-
-- [x] Task 11: `AmountField` tabular figures
-  - Acceptance: `displaySmall` text style carries `fontFeatureSettings = "tnum"`
-  - Verify: `assembleDebug` (no JVM-testable behavior — this is a text-rendering hint, not logic)
-  - Files: `presentation/components/AmountField.kt`
-
-## Checkpoint: Sprint 6 done
+## Checkpoint: Sprint 7 done
 - [x] `.\gradlew.bat lint`
-- [x] `.\gradlew.bat test` — 169 tests, 0 failures
+- [x] `.\gradlew.bat test` — 209 tests, 0 failures (up from 169)
 - [x] `.\gradlew.bat assembleDebug`
-- [x] `.\gradlew.bat compileDebugAndroidTestKotlin` — androidTest sources still compile (no execution; no device)
-- [x] Dynamic color still off; no dark `ColorScheme`
-- [x] No generated asset lookup can fail — `categoryStyleFor` always resolves
-- [ ] `.\gradlew.bat connectedDebugAndroidTest` (needs a device/emulator)
-- [ ] Human review before the sprint is treated as closed — "reads as one ink family at device size" is a visual call this session cannot make
+- [x] `.\gradlew.bat connectedDebugAndroidTest` — non-Compose suites green (`QuickLoggerDatabaseTest` 20/20, `DatabaseMigrationTest` 3/3, `ReceiptFileStoreTest` 13/13, `RoomCategoryRepositoryTest` 4/4); Compose UI suites (`LogScreenTest`, `DashboardScreenTest`, `ExpenseEditScreenTest`) fail on this emulator image with `NoSuchMethodException: InputManager.getInstance` — a pre-existing Espresso/emulator incompatibility, confirmed unrelated to this sprint because `ExpenseEditScreenTest` (untouched) fails identically
+- [x] No logged amount tinted green/red anywhere in the app
+- [x] Share text and CSV output unchanged for the same data (existing share/CSV tests all still pass)
+- [x] No new Gradle dependency, no new nav route, no new tap on the log path
+- [ ] Human review before the sprint is treated as closed — the dashboard's visual read ("modern", "quick overview") is ultimately a human call, same as every visual criterion in sprint 6
 
 ## Follow-ups noticed, not actioned
-- `material-icons-extended` was deliberately not added; if a future sprint wants true Material Symbols for camera/gallery instead of the hand-drawn glyphs, that's a one-file swap in `ReceiptAttachment.kt`.
-- `categoryStyleFor` matches by `name`, not by a stable id — a custom category renamed to collide with a seeded name (e.g. "Food") would silently take that seed's style. Not asked for; flagged for whoever adds a color/icon column later.
-- `ManageCategoriesDialog`'s category rows (History's overflow → manage) do not show pictograms — DESIGN doesn't ask for it there (only chips and History rows are specified), left as plain rows.
+
+- **Test-classpath dependency fix.** `room-testing:2.8.4`'s own published metadata pins `kotlinx-serialization-core` to a version inconsistent with `room-migration:2.8.4`'s `kotlinx-serialization-json:1.8.1`, throwing `AbstractMethodError` inside `MigrationTestHelper` on any device. Fixed with a `resolutionStrategy.force` on the `androidTest` configurations in `app/build.gradle.kts`, scoped to test dependencies only — not a change to the shipped app's classpath. Worth a follow-up when Room ships a release that reconciles this itself.
+- **Bar currency choice.** A category bar with no target picks its "dominant" currency as the one with the largest total this month (`ExpenseTotals.byCurrency(...).maxByOrNull`); rows in a smaller secondary currency are excluded from that bar's number, mirroring the target-currency exclusion rule. Not asked for; flagged in case multi-currency logging within one category becomes common enough to want a second bar instead.
+- **`BudgetError.InvalidAmount` has no UI-visible message.** Both callers into `SetBudgetTarget` (Log's remaining line reads target data only; the dashboard dialog) already exclude non-positive amounts before calling it, so the branch is defensive-only, like `ExpenseError.UnknownCategory`. No `strings.xml` entry was added since nothing renders it — add one if a future caller can actually hit it.

@@ -6,7 +6,7 @@ import com.quicklogger.app.domain.repository.ExpenseRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
-/** The expenses History shows for the selected period. */
+/** The expenses the Dashboard shows for the selected period. */
 class ObserveExpensesInRange @Inject constructor(
     private val expenses: ExpenseRepository,
 ) {

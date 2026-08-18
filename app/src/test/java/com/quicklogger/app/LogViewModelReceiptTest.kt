@@ -6,7 +6,9 @@ import com.quicklogger.app.domain.usecase.CreateReceiptDraft
 import com.quicklogger.app.domain.usecase.DeleteReceipt
 import com.quicklogger.app.domain.usecase.FormatExpenseShareText
 import com.quicklogger.app.domain.usecase.ImportReceipt
+import com.quicklogger.app.domain.usecase.ObserveBudgetTargets
 import com.quicklogger.app.domain.usecase.ObserveCategories
+import com.quicklogger.app.domain.usecase.ObserveExpensesInRange
 import com.quicklogger.app.domain.usecase.ReceiptHasContent
 import com.quicklogger.app.domain.usecase.SaveExpense
 import com.quicklogger.app.presentation.log.LogEvent
@@ -56,13 +58,12 @@ class LogViewModelReceiptTest {
         receipts = FakeReceiptStore()
         expenses = FakeExpenseRepository()
         categories = FakeCategoryRepository(listOf(food))
+        val clock = Clock.fixed(Instant.parse("2026-08-17T17:32:00Z"), ZoneOffset.UTC)
         return LogViewModel(
             observeCategories = ObserveCategories(categories),
-            saveExpense = SaveExpense(
-                expenses,
-                categories,
-                Clock.fixed(Instant.parse("2026-08-17T17:32:00Z"), ZoneOffset.UTC),
-            ),
+            observeBudgetTargets = ObserveBudgetTargets(FakeBudgetTargetRepository()),
+            observeExpensesInRange = ObserveExpensesInRange(expenses),
+            saveExpense = SaveExpense(expenses, categories, clock),
             lastCategoryStore = FakeLastCategoryStore(),
             createCategory = CreateCategory(categories),
             receiptAttachment = ReceiptAttachmentController(
@@ -72,6 +73,7 @@ class LogViewModelReceiptTest {
                 ReceiptHasContent(receipts),
             ),
             formatExpenseShareText = FormatExpenseShareText(),
+            clock = clock,
             localeProvider = Provider { Locale.US },
             zoneProvider = Provider { ZoneOffset.UTC },
         )

@@ -29,6 +29,12 @@ android {
         compose = true
     }
 
+    sourceSets {
+        // MigrationTestHelper reads each version's committed schema JSON from
+        // assets — same directory KSP already writes them to (§7.1 below).
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
@@ -55,6 +61,24 @@ ksp {
     // ARCHITECTURE §7.1: exportSchema = true with the JSON committed under app/schemas/
     // so sprint 4 onwards can write migrations against a recorded v1.
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// `androidx.room:room-migration:2.8.4` (used by `MigrationTestHelper`) is built
+// against `kotlinx-serialization-json:1.8.1`, whose generated `$$serializer`
+// classes require `GeneratedSerializer.typeParametersSerializers()` — a method
+// that only exists from `kotlinx-serialization-core` 1.7.0 onward. A separate,
+// stricter constraint elsewhere in Room 2.8.4's own metadata otherwise pins core
+// down to 1.7.3 in a way that resolves inconsistently and throws
+// `AbstractMethodError` the instant `MigrationTestHelper` parses a schema JSON.
+// Forcing the whole serialization trio to the same known-good version keeps
+// json and core mutually consistent.
+configurations.matching { it.name.contains("AndroidTest") }.configureEach {
+    resolutionStrategy {
+        force("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.1")
+        force("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.8.1")
+        force("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+        force("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.8.1")
+    }
 }
 
 dependencies {

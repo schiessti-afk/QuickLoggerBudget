@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">QuickLogger</string>
-    <string name="history">History</string>
     <string name="navigate_up">Navigate up</string>
     <string name="amount_label">Amount</string>
     <string name="category_label">Category</string>
@@ -45,4 +44,16 @@
     <string name="history_menu">More</string>
     <string name="share_period">Share period</string>
     <string name="export_csv">Export CSV</string>
+    <string name="budget_left">%1$s %2$s left</string>
+    <string name="budget_over_by">%1$s over by %2$s</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="budget_target_dialog_title_overall">Monthly budget</string>
+    <string name="budget_target_amount_label">Target amount</string>
+    <string name="budget_target_save">Set target</string>
+    <string name="budget_target_clear">Clear target</string>
+    <string name="budget_meter_remaining_left">%1$s left</string>
+    <string name="budget_meter_over_by">Over by %1$s</string>
+    <string name="budget_meter_of_target">of %1$s</string>
+    <string name="budget_meter_content_description">Monthly budget, %1$s</string>
+    <string name="budget_bar_content_description">%1$s budget</string>
 </resources>

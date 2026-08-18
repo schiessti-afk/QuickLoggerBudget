@@ -10,9 +10,9 @@ import java.util.Locale
 import javax.inject.Inject
 
 /**
- * History's period share (ARCHITECTURE §9.2): a title line, one line per expense,
+ * Dashboard's period share (ARCHITECTURE §9.2): a title line, one line per expense,
  * then one total line per currency ([ExpenseTotals] is still the only place a total
- * is computed). [expenses] is used in the order it is given — History already hands
+ * is computed). [expenses] is used in the order it is given — Dashboard already hands
  * this newest-first.
  */
 class BuildPeriodSummary @Inject constructor() {

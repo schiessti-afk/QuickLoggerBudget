@@ -28,7 +28,7 @@ import com.quicklogger.app.presentation.theme.categoryStyleFor
  * selected state must never read as white-on-accent. The trailing `+` chip
  * (ARCHITECTURE §6.3) is not part of the radio group — it opens the create-category
  * dialog, carries no pictogram, and is omitted entirely when [onAddCategory] is
- * null, so History's category list (which doesn't create) can reuse this composable.
+ * null, so the Dashboard's category list (which doesn't create) can reuse this composable.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

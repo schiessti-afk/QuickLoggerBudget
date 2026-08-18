@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 /**
- * Newest-first expenses. Sprint 2 proves the stream; History renders it in sprint 4.
+ * Newest-first expenses. Sprint 2 proves the stream; the Dashboard renders it in sprint 4.
  */
 class ObserveExpenses @Inject constructor(
     private val expenses: ExpenseRepository,

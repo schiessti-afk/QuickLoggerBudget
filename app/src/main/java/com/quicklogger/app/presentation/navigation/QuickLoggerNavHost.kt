@@ -14,8 +14,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.quicklogger.app.presentation.categories.ManageCategoriesDialog
+import com.quicklogger.app.presentation.dashboard.DashboardScreen
 import com.quicklogger.app.presentation.expenseedit.ExpenseEditScreen
-import com.quicklogger.app.presentation.history.HistoryScreen
 import com.quicklogger.app.presentation.log.LogScreen
 
 @Composable
@@ -30,13 +30,13 @@ fun QuickLoggerNavHost(
     ) {
         composable(Routes.LOG) {
             LogScreen(
-                onOpenHistory = { navController.navigate(Routes.HISTORY) },
+                onOpenDashboard = { navController.navigate(Routes.DASHBOARD) },
             )
         }
-        composable(Routes.HISTORY) {
+        composable(Routes.DASHBOARD) {
             var showManageCategories by remember { mutableStateOf(false) }
 
-            HistoryScreen(
+            DashboardScreen(
                 onNavigateUp = { navController.popBackStack() },
                 onEditExpense = { id -> navController.navigate(Routes.expenseEdit(id)) },
                 onManageCategories = { showManageCategories = true },

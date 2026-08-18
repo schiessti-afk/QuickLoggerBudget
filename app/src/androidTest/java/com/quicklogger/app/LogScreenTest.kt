@@ -44,7 +44,7 @@ class LogScreenTest {
             LogScreenContent(
                 uiState = state,
                 onEvent = onEvent,
-                onOpenHistory = {},
+                onOpenDashboard = {},
                 receiptFile = receiptFile,
             )
         }

@@ -1,4 +1,4 @@
-package com.quicklogger.app.presentation.history
+package com.quicklogger.app.presentation.dashboard
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.quicklogger.app.R
+import com.quicklogger.app.presentation.components.BudgetBarRow
+import com.quicklogger.app.presentation.components.BudgetMeter
 import com.quicklogger.app.presentation.components.PeriodChips
 import com.quicklogger.app.presentation.components.buildCsvShareIntent
 import com.quicklogger.app.presentation.components.buildTextShareIntent
@@ -53,11 +55,11 @@ import com.quicklogger.app.presentation.components.launchShareChooser
 import com.quicklogger.app.presentation.theme.categoryStyleFor
 
 @Composable
-fun HistoryScreen(
+fun DashboardScreen(
     onNavigateUp: () -> Unit,
     onEditExpense: (Long) -> Unit,
     onManageCategories: () -> Unit,
-    viewModel: HistoryViewModel = hiltViewModel(),
+    viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -65,14 +67,14 @@ fun HistoryScreen(
     LaunchedEffect(Unit) {
         viewModel.uiEvents.collect { event ->
             when (event) {
-                is HistoryUiEvent.ShareText -> context.launchShareChooser(buildTextShareIntent(event.text))
-                is HistoryUiEvent.ShareCsv ->
+                is DashboardUiEvent.ShareText -> context.launchShareChooser(buildTextShareIntent(event.text))
+                is DashboardUiEvent.ShareCsv ->
                     context.launchShareChooser(buildCsvShareIntent(context, event.fileName))
             }
         }
     }
 
-    HistoryScreenContent(
+    DashboardScreenContent(
         uiState = uiState,
         onEvent = viewModel::onEvent,
         onNavigateUp = onNavigateUp,
@@ -83,9 +85,9 @@ fun HistoryScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun HistoryScreenContent(
-    uiState: HistoryUiState,
-    onEvent: (HistoryEvent) -> Unit,
+internal fun DashboardScreenContent(
+    uiState: DashboardUiState,
+    onEvent: (DashboardEvent) -> Unit,
     onNavigateUp: () -> Unit,
     onEditExpense: (Long) -> Unit,
     onManageCategories: () -> Unit,
@@ -95,7 +97,7 @@ internal fun HistoryScreenContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.history)) },
+                title = { Text(stringResource(R.string.dashboard)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
                         Icon(
@@ -118,11 +120,11 @@ internal fun HistoryScreenContent(
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.share_period)) },
-                            onClick = { showMenu = false; onEvent(HistoryEvent.SharePeriodText) },
+                            onClick = { showMenu = false; onEvent(DashboardEvent.SharePeriodText) },
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.export_csv)) },
-                            onClick = { showMenu = false; onEvent(HistoryEvent.ExportCsv) },
+                            onClick = { showMenu = false; onEvent(DashboardEvent.ExportCsv) },
                         )
                     }
                 },
@@ -136,10 +138,25 @@ internal fun HistoryScreenContent(
         },
         containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            // DESIGN §4.2: nothing set and nothing spent draws neither the meter nor
+            // any bar — the screen is then byte-for-byte what History used to be.
+            if (!uiState.overview.isEmpty) {
+                BudgetOverviewSection(
+                    overview = uiState.overview,
+                    onEditOverall = { onEvent(DashboardEvent.EditBudgetTarget(null)) },
+                    onEditCategory = { categoryId -> onEvent(DashboardEvent.EditBudgetTarget(categoryId)) },
+                )
+                HorizontalDivider()
+            }
+
             PeriodChips(
                 selected = uiState.period,
-                onSelected = { onEvent(HistoryEvent.PeriodSelected(it)) },
+                onSelected = { onEvent(DashboardEvent.PeriodSelected(it)) },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             )
 
@@ -173,17 +190,48 @@ internal fun HistoryScreenContent(
             } else {
                 LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
                     items(uiState.rows, key = { it.id }) { row ->
-                        HistoryRow(row = row, onClick = { onEditExpense(row.id) })
+                        DashboardRow(row = row, onClick = { onEditExpense(row.id) })
                         HorizontalDivider()
                     }
                 }
             }
         }
     }
+
+    uiState.targetDialog?.let { dialog ->
+        BudgetTargetDialog(
+            state = dialog,
+            onAmountChanged = { onEvent(DashboardEvent.BudgetTargetAmountChanged(it)) },
+            onConfirm = { onEvent(DashboardEvent.ConfirmBudgetTarget) },
+            onDismiss = { onEvent(DashboardEvent.DismissBudgetTargetDialog) },
+        )
+    }
+}
+
+/** DESIGN §4.2: the meter first, then one bar per category, spend-descending. */
+@Composable
+private fun BudgetOverviewSection(
+    overview: BudgetOverviewUiModel,
+    onEditOverall: () -> Unit,
+    onEditCategory: (Long) -> Unit,
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        overview.meter?.let { meter ->
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                BudgetMeter(meter = meter, onClick = onEditOverall)
+            }
+            if (overview.bars.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+            }
+        }
+        overview.bars.forEach { bar ->
+            BudgetBarRow(bar = bar, onClick = { onEditCategory(bar.categoryId) })
+        }
+    }
 }
 
 @Composable
-private fun HistoryRow(row: HistoryRowUiModel, onClick: () -> Unit) {
+private fun DashboardRow(row: DashboardRowUiModel, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

@@ -1,7 +1,10 @@
 package com.quicklogger.app
 
+import com.quicklogger.app.domain.model.BudgetTarget
 import com.quicklogger.app.domain.model.Category
 import com.quicklogger.app.domain.model.Expense
+import com.quicklogger.app.domain.model.Money
+import com.quicklogger.app.domain.repository.BudgetTargetRepository
 import com.quicklogger.app.domain.repository.CategoryRepository
 import com.quicklogger.app.domain.repository.CsvExportStore
 import com.quicklogger.app.domain.repository.ExpenseRepository
@@ -143,5 +146,32 @@ class FakeLastCategoryStore(private var stored: Long? = null) : LastCategoryStor
     override suspend fun setLastSelectedId(id: Long) {
         stored = id
         writes += id
+    }
+}
+
+/** Keyed by `categoryId` (including `null` for the overall row), mirroring the real DAO's upsert. */
+class FakeBudgetTargetRepository(targets: List<BudgetTarget> = emptyList()) : BudgetTargetRepository {
+    private val rows = MutableStateFlow(targets)
+
+    override fun observeAll(): Flow<List<BudgetTarget>> = rows.asStateFlow()
+
+    override suspend fun upsertOverall(amount: Money) = upsert(null, amount)
+
+    override suspend fun upsertForCategory(categoryId: Long, amount: Money) = upsert(categoryId, amount)
+
+    override suspend fun deleteOverall() {
+        rows.value = rows.value.filterNot { it.categoryId == null }
+    }
+
+    override suspend fun deleteForCategory(categoryId: Long) {
+        rows.value = rows.value.filterNot { it.categoryId == categoryId }
+    }
+
+    private fun upsert(categoryId: Long?, amount: Money) {
+        rows.value = if (rows.value.any { it.categoryId == categoryId }) {
+            rows.value.map { if (it.categoryId == categoryId) BudgetTarget(categoryId, amount) else it }
+        } else {
+            rows.value + BudgetTarget(categoryId, amount)
+        }
     }
 }

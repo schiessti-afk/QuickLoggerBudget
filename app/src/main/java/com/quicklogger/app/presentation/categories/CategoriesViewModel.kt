@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Rename/delete, reachable from History's overflow (ARCHITECTURE §6.3). Creation is
+ * Rename/delete, reachable from the Dashboard's overflow (ARCHITECTURE §6.3). Creation is
  * a separate, simpler flow already owned by `LogViewModel`'s `+` chip — this
  * ViewModel only manages existing rows.
  */

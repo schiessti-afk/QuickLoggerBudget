@@ -2,11 +2,12 @@ package com.quicklogger.app.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [CategoryEntity::class, ExpenseEntity::class],
-    version = 1,
+    entities = [CategoryEntity::class, ExpenseEntity::class, BudgetTargetEntity::class],
+    version = 2,
     exportSchema = true,
 )
 abstract class QuickLoggerDatabase : RoomDatabase() {
@@ -14,8 +15,33 @@ abstract class QuickLoggerDatabase : RoomDatabase() {
 
     abstract fun expenseDao(): ExpenseDao
 
+    abstract fun budgetTargetDao(): BudgetTargetDao
+
     companion object {
         const val NAME = "quicklogger.db"
+    }
+}
+
+/**
+ * ARCHITECTURE §7.1 / §15: the one approved post-v1 schema change, sprint 7. Adds
+ * `budget_targets` only — it touches no existing table, so an app updated from v1
+ * keeps every expense, category, and receipt untouched.
+ */
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `budget_targets` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`categoryId` INTEGER, " +
+                "`amountMinor` INTEGER NOT NULL, " +
+                "`currencyCode` TEXT NOT NULL, " +
+                "FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_targets_categoryId` " +
+                "ON `budget_targets` (`categoryId`)",
+        )
     }
 }
 

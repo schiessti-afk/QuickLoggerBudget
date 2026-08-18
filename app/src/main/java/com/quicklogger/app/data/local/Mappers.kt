@@ -1,5 +1,6 @@
 package com.quicklogger.app.data.local
 
+import com.quicklogger.app.domain.model.BudgetTarget
 import com.quicklogger.app.domain.model.Category
 import com.quicklogger.app.domain.model.Expense
 import com.quicklogger.app.domain.model.Money
@@ -24,6 +25,11 @@ internal fun ExpenseEntity.toDomain() = Expense(
     receiptRelativePath = receiptRelativePath,
     createdAt = Instant.ofEpochMilli(createdAtEpochMs),
     updatedAt = Instant.ofEpochMilli(updatedAtEpochMs),
+)
+
+internal fun BudgetTargetEntity.toDomain() = BudgetTarget(
+    categoryId = categoryId,
+    amount = Money(minor = amountMinor, currencyCode = currencyCode),
 )
 
 internal fun Expense.toEntity() = ExpenseEntity(

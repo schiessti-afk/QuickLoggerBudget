@@ -33,7 +33,7 @@ import com.quicklogger.app.domain.model.Category
 import com.quicklogger.app.presentation.log.messageRes
 
 /**
- * Rename/delete from History's overflow (ARCHITECTURE §6.3) — a dialog, matching the
+ * Rename/delete from the Dashboard's overflow (ARCHITECTURE §6.3) — a dialog, matching the
  * create dialog's "not a nav route" shape. `Other` never shows a delete action.
  */
 @Composable

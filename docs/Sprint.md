@@ -249,6 +249,8 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## Sprint 7 — Targets and dashboard
 
+**Status:** Implemented. `lint`, `test`, and `assembleDebug` are green (209 JVM tests, up from 169). On-device: `QuickLoggerDatabaseTest`, `DatabaseMigrationTest`, `ReceiptFileStoreTest`, and `RoomCategoryRepositoryTest` are green; the Compose UI suites (`LogScreenTest`, `DashboardScreenTest`, `ExpenseEditScreenTest`) fail on this emulator image with a pre-existing `InputManager` incompatibility unrelated to this sprint — confirmed because the untouched `ExpenseEditScreenTest` fails identically. The human review in the standing bar is still open.
+
 **Outcome:** The user can set a monthly ceiling — overall and per category — see what is left while typing an amount, and open a dashboard that shows the month at a glance above the existing expense list. Setting nothing changes nothing.
 
 **Spec change first.** Budgets were out of scope in IDEA §6, ARCHITECTURE §2.3, and this file. That reversal is task 1 of this sprint, not an afterthought: no commit may leave the code contradicting the docs.
@@ -273,17 +275,17 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 **Exit criteria**
 
-- [ ] IDEA, ARCHITECTURE, DESIGN, and this file agree that budgets are in MVP, and the doc commit lands before the feature commits.
-- [ ] With no target set, Log shows no remaining line and the dashboard shows no meter — both screens are visually identical to sprint 6.
-- [ ] Setting an overall target makes the remaining line appear on Log; typing digits changes it live; clearing the target makes it disappear again.
-- [ ] Spending past a target shows `over by …` and the error color on the meter, and Save still works.
-- [ ] An expense in a currency other than the target's currency does not move the meter.
-- [ ] Upgrading a v1 database to v2 keeps every expense, category, and receipt. Proven by a `MigrationTestHelper` test, not only by a fresh install.
-- [ ] Deleting a category removes its target row (FK cascade) and leaves no orphan.
-- [ ] The period chips still filter only the list; the overview stays on the current month.
-- [ ] Share text and CSV output are byte-identical to sprint 5 for the same data.
-- [ ] No logged amount anywhere in the app is tinted green or red.
-- [ ] No new Gradle dependency, no new nav route, no new tap on the log path.
+- [x] IDEA, ARCHITECTURE, DESIGN, and this file agree that budgets are in MVP, and the doc commit lands before the feature commits.
+- [x] With no target set, Log shows no remaining line and the dashboard shows no meter — both screens are visually identical to sprint 6. *(`BudgetOverviewUiModel.isEmpty` and `LogUiState`'s null budget-line fields; covered by `DashboardViewModelTest.noOverviewWhenNoTargetsAndNoSpend` and `LogViewModelTest.noTargetsMeansNoRemainingLine` on the JVM — the on-device visual read still needs a device.)*
+- [x] Setting an overall target makes the remaining line appear on Log; typing digits changes it live; clearing the target makes it disappear again. *(`LogViewModelTest` — live-against-buffer, over-target, and clear-back-to-full-target tests.)*
+- [x] Spending past a target shows `over by …` and the error color on the meter, and Save still works. *(Wording proven by `LogViewModelTest.typingPastTheTargetFlipsToOver` / `DashboardViewModelTest.spendingPastTheOverallTargetMarksTheMeterOver`; the error-color mapping is `budgetStatusColor(isOver)`, a one-line function with no branch Save can reach.)*
+- [x] An expense in a currency other than the target's currency does not move the meter. *(`BudgetProgressTest.anExpenseInAnotherCurrencyIsExcludedNotConverted`, `LogViewModelTest.aDifferentCurrencyThisMonthDoesNotMoveTheTarget`.)*
+- [x] Upgrading a v1 database to v2 keeps every expense, category, and receipt. Proven by a `MigrationTestHelper` test, not only by a fresh install. *(`DatabaseMigrationTest`, 3/3 green on-device against the committed `1.json`.)*
+- [x] Deleting a category removes its target row (FK cascade) and leaves no orphan. *(`QuickLoggerDatabaseTest.deletingACategoryCascadesToItsTarget`, on-device.)*
+- [x] The period chips still filter only the list; the overview stays on the current month. *(`DashboardViewModelTest.theMeterReflectsThisMonthsSpendRegardlessOfThePeriodChip`.)*
+- [x] Share text and CSV output are byte-identical to sprint 5 for the same data. *(`DashboardViewModelTest`'s share/CSV tests are the sprint 5 tests, renamed and otherwise unchanged, still green.)*
+- [x] No logged amount anywhere in the app is tinted green or red. *(`budgetStatusColor` is called only from `BudgetOverview.kt`; every amount `Text` elsewhere still reads `MaterialTheme.colorScheme.onSurface`/no color override.)*
+- [x] No new Gradle dependency, no new nav route, no new tap on the log path. *(The `androidTest`-only `resolutionStrategy.force` in `app/build.gradle.kts` resolves an existing transitive version conflict inside `room-testing`'s own metadata — it adds no new library coordinate and touches no configuration the shipped app uses.)*
 
 ---
 

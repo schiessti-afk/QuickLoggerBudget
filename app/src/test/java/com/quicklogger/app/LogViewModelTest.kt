@@ -1,12 +1,17 @@
 package com.quicklogger.app
 
 import com.quicklogger.app.domain.model.Category
+import com.quicklogger.app.domain.model.BudgetTarget
+import com.quicklogger.app.domain.model.Expense
+import com.quicklogger.app.domain.model.Money
 import com.quicklogger.app.domain.usecase.CreateCategory
 import com.quicklogger.app.domain.usecase.CreateReceiptDraft
 import com.quicklogger.app.domain.usecase.DeleteReceipt
 import com.quicklogger.app.domain.usecase.FormatExpenseShareText
 import com.quicklogger.app.domain.usecase.ImportReceipt
+import com.quicklogger.app.domain.usecase.ObserveBudgetTargets
 import com.quicklogger.app.domain.usecase.ObserveCategories
+import com.quicklogger.app.domain.usecase.ObserveExpensesInRange
 import com.quicklogger.app.domain.usecase.ReceiptHasContent
 import com.quicklogger.app.domain.usecase.SaveExpense
 import com.quicklogger.app.presentation.log.LogEvent
@@ -26,6 +31,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -58,18 +64,18 @@ class LogViewModelTest {
         categories: List<Category> = seeded,
         remembered: Long? = null,
         locale: Locale = Locale.US,
+        budgetTargets: List<BudgetTarget> = emptyList(),
     ): LogViewModel {
         expenses = FakeExpenseRepository()
         lastCategory = FakeLastCategoryStore(remembered)
         val categoryRepository = FakeCategoryRepository(categories)
         val receipts = FakeReceiptStore()
+        val clock = Clock.fixed(Instant.parse("2026-08-17T17:32:00Z"), ZoneOffset.UTC)
         return LogViewModel(
             observeCategories = ObserveCategories(categoryRepository),
-            saveExpense = SaveExpense(
-                expenses,
-                categoryRepository,
-                Clock.fixed(Instant.parse("2026-08-17T17:32:00Z"), ZoneOffset.UTC),
-            ),
+            observeBudgetTargets = ObserveBudgetTargets(FakeBudgetTargetRepository(budgetTargets)),
+            observeExpensesInRange = ObserveExpensesInRange(expenses),
+            saveExpense = SaveExpense(expenses, categoryRepository, clock),
             lastCategoryStore = lastCategory,
             createCategory = CreateCategory(categoryRepository),
             receiptAttachment = ReceiptAttachmentController(
@@ -79,6 +85,7 @@ class LogViewModelTest {
                 ReceiptHasContent(receipts),
             ),
             formatExpenseShareText = FormatExpenseShareText(),
+            clock = clock,
             localeProvider = Provider { locale },
             zoneProvider = Provider { ZoneOffset.UTC },
         )
@@ -365,5 +372,132 @@ class LogViewModelTest {
 
         assertEquals("", viewModel.uiState.value.amountDigits)
         assertFalse(viewModel.uiState.value.isSaving)
+    }
+
+    // --- remaining budget line (ARCHITECTURE §8.1.8) ---
+
+    @Test
+    fun noTargetsMeansNoRemainingLine() = runTest {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        viewModel.onEvent(LogEvent.AmountChanged("4500"))
+
+        assertNull(viewModel.uiState.value.categoryBudgetLine)
+        assertNull(viewModel.uiState.value.monthBudgetLine)
+    }
+
+    @Test
+    fun aCategoryTargetShowsWhatSavingNowWouldLeaveLiveAgainstTheBuffer() = runTest {
+        val viewModel = viewModel(budgetTargets = listOf(BudgetTarget(food.id, Money(10_000, "USD"))))
+        advanceUntilIdle()
+        viewModel.onEvent(LogEvent.CategorySelected(food.id))
+
+        viewModel.onEvent(LogEvent.AmountChanged("4500"))
+
+        val line = requireNotNull(viewModel.uiState.value.categoryBudgetLine)
+        assertEquals("Food", line.label)
+        assertEquals("$55.00", line.remainingFormatted)
+        assertFalse(line.isOver)
+    }
+
+    @Test
+    fun anOverallTargetShowsTheMonthLabel() = runTest {
+        val viewModel = viewModel(budgetTargets = listOf(BudgetTarget(null, Money(10_000, "USD"))))
+        advanceUntilIdle()
+
+        viewModel.onEvent(LogEvent.AmountChanged("4500"))
+
+        val line = requireNotNull(viewModel.uiState.value.monthBudgetLine)
+        assertEquals("Month", line.label)
+        assertEquals("$55.00", line.remainingFormatted)
+    }
+
+    @Test
+    fun bothTargetsProduceBothSegmentsAtOnce() = runTest {
+        val viewModel = viewModel(
+            budgetTargets = listOf(
+                BudgetTarget(food.id, Money(10_000, "USD")),
+                BudgetTarget(null, Money(50_000, "USD")),
+            ),
+        )
+        advanceUntilIdle()
+        viewModel.onEvent(LogEvent.CategorySelected(food.id))
+
+        viewModel.onEvent(LogEvent.AmountChanged("4500"))
+
+        assertNotNull(viewModel.uiState.value.categoryBudgetLine)
+        assertNotNull(viewModel.uiState.value.monthBudgetLine)
+    }
+
+    @Test
+    fun typingPastTheTargetFlipsToOver() = runTest {
+        val viewModel = viewModel(budgetTargets = listOf(BudgetTarget(food.id, Money(4_000, "USD"))))
+        advanceUntilIdle()
+        viewModel.onEvent(LogEvent.CategorySelected(food.id))
+
+        viewModel.onEvent(LogEvent.AmountChanged("4500"))
+
+        val line = requireNotNull(viewModel.uiState.value.categoryBudgetLine)
+        assertTrue(line.isOver)
+        assertEquals("$5.00", line.remainingFormatted)
+    }
+
+    @Test
+    fun alreadySpentThisMonthReducesTheRemainingBeforeTypingAnything() = runTest {
+        val viewModel = viewModel(budgetTargets = listOf(BudgetTarget(food.id, Money(10_000, "USD"))))
+        expenses.insert(
+            Expense(
+                id = 0L,
+                amount = Money(3_000, "USD"),
+                categoryId = food.id,
+                occurredAt = Instant.parse("2026-08-10T10:00:00Z"),
+                receiptRelativePath = null,
+                createdAt = Instant.parse("2026-08-10T10:00:00Z"),
+                updatedAt = Instant.parse("2026-08-10T10:00:00Z"),
+            ),
+        )
+        advanceUntilIdle()
+        viewModel.onEvent(LogEvent.CategorySelected(food.id))
+        advanceUntilIdle()
+
+        val line = requireNotNull(viewModel.uiState.value.categoryBudgetLine)
+        assertEquals("$70.00", line.remainingFormatted)
+    }
+
+    @Test
+    fun aDifferentCurrencyThisMonthDoesNotMoveTheTarget() = runTest {
+        val viewModel = viewModel(budgetTargets = listOf(BudgetTarget(food.id, Money(10_000, "USD"))))
+        expenses.insert(
+            Expense(
+                id = 0L,
+                amount = Money(3_000, "BRL"),
+                categoryId = food.id,
+                occurredAt = Instant.parse("2026-08-10T10:00:00Z"),
+                receiptRelativePath = null,
+                createdAt = Instant.parse("2026-08-10T10:00:00Z"),
+                updatedAt = Instant.parse("2026-08-10T10:00:00Z"),
+            ),
+        )
+        advanceUntilIdle()
+        viewModel.onEvent(LogEvent.CategorySelected(food.id))
+        advanceUntilIdle()
+
+        val line = requireNotNull(viewModel.uiState.value.categoryBudgetLine)
+        assertEquals("$100.00", line.remainingFormatted)
+    }
+
+    @Test
+    fun clearingTheAmountBackToEmptyShowsTheFullTargetAsRemaining() = runTest {
+        val viewModel = viewModel(budgetTargets = listOf(BudgetTarget(food.id, Money(10_000, "USD"))))
+        advanceUntilIdle()
+        viewModel.onEvent(LogEvent.CategorySelected(food.id))
+        viewModel.onEvent(LogEvent.AmountChanged("4500"))
+
+        viewModel.onEvent(LogEvent.AmountChanged(""))
+
+        val line = requireNotNull(viewModel.uiState.value.categoryBudgetLine)
+        assertEquals("$100.00", line.remainingFormatted)
+        assertFalse(line.isOver)
     }
 }

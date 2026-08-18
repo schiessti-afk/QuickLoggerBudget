@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,7 +59,7 @@ import java.io.File
 
 @Composable
 fun LogScreen(
-    onOpenHistory: () -> Unit,
+    onOpenDashboard: () -> Unit,
     viewModel: LogViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -95,7 +96,7 @@ fun LogScreen(
     LogScreenContent(
         uiState = uiState,
         onEvent = viewModel::onEvent,
-        onOpenHistory = onOpenHistory,
+        onOpenDashboard = onOpenDashboard,
         receiptFile = uiState.receiptRelativePath?.let { receiptFile(context, it) },
         onPickReceipt = {
             pickerLauncher.launch(
@@ -110,7 +111,7 @@ fun LogScreen(
 internal fun LogScreenContent(
     uiState: LogUiState,
     onEvent: (LogEvent) -> Unit,
-    onOpenHistory: () -> Unit,
+    onOpenDashboard: () -> Unit,
     receiptFile: File? = null,
     onPickReceipt: () -> Unit = {},
 ) {
@@ -142,10 +143,10 @@ internal fun LogScreenContent(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onOpenHistory) {
+                    IconButton(onClick = onOpenDashboard) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.List,
-                            contentDescription = stringResource(R.string.history),
+                            contentDescription = stringResource(R.string.dashboard),
                         )
                     }
                 },
@@ -172,6 +173,23 @@ internal fun LogScreenContent(
                 supportingText = uiState.saveError?.let { stringResource(it.messageRes) },
                 isError = uiState.saveError != null,
             )
+
+            // ARCHITECTURE §8.1.8 / DESIGN §4.1: one line, live against the buffer,
+            // absent when neither target exists. Never wraps or pushes the chips down.
+            val budgetSegments = listOfNotNull(
+                uiState.categoryBudgetLine?.let { budgetLineText(it) },
+                uiState.monthBudgetLine?.let { budgetLineText(it) },
+            )
+            if (budgetSegments.isNotEmpty()) {
+                val isOver = uiState.categoryBudgetLine?.isOver == true || uiState.monthBudgetLine?.isOver == true
+                Text(
+                    text = budgetSegments.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isOver) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
 
@@ -237,6 +255,14 @@ internal fun LogScreenContent(
             onCreate = { onEvent(LogEvent.CreateCategoryRequested(it)) },
         )
     }
+}
+
+/** Picks the "left" or "over by" template (DESIGN §5.4) and fills it from `strings.xml`. */
+@Composable
+private fun budgetLineText(line: BudgetLineUiModel): String = if (line.isOver) {
+    stringResource(R.string.budget_over_by, line.label, line.remainingFormatted)
+} else {
+    stringResource(R.string.budget_left, line.label, line.remainingFormatted)
 }
 
 /**
