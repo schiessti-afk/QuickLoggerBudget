@@ -50,10 +50,13 @@ Apply this on top of that sprint’s exit criteria. A sprint that meets its feat
            6 Stationery identity
                 │
                 ▼
-           7 Signed release     ← MVP
+           7 Targets and dashboard
+                │
+                ▼
+           8 Signed release     ← MVP
 ```
 
-Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but not in parallel on the same Room schema without a single owner for migrations. Sprint 5 depends on 3 (receipt on the share intent) and 4 (period list). Sprints 6 and 7 are sequential after 5.
+Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but not in parallel on the same Room schema without a single owner for migrations. Sprint 5 depends on 3 (receipt on the share intent) and 4 (period list). Sprints 6, 7, and 8 are sequential after 5. Sprint 7 owns the v1 → v2 migration; nothing else may change the schema while it is in flight.
 
 ---
 
@@ -244,7 +247,47 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ---
 
-## Sprint 7 — Signed release
+## Sprint 7 — Targets and dashboard
+
+**Outcome:** The user can set a monthly ceiling — overall and per category — see what is left while typing an amount, and open a dashboard that shows the month at a glance above the existing expense list. Setting nothing changes nothing.
+
+**Spec change first.** Budgets were out of scope in IDEA §6, ARCHITECTURE §2.3, and this file. That reversal is task 1 of this sprint, not an afterthought: no commit may leave the code contradicting the docs.
+
+**In**
+
+- **Docs (first commit, before any Kotlin).** IDEA §3/§4/§6, ARCHITECTURE §2.3/§4/§6.5/§7.1/§8/§12/§15/§17, DESIGN §2/§4.1/§4.2/§5.1/§5.4/§6/§9/§10, and this file. Green/red is now allowed on budget surfaces only (DESIGN §5.4).
+- **Domain.** `BudgetTarget` (ARCHITECTURE §6.5), `BudgetTargetRepository` interface, `ObserveBudgetTargets`, `SetBudgetTarget`, `ClearBudgetTarget`, and a pure `BudgetProgress` calculator (`spent`, `remaining`, `ratio`, per target). Progress is always derived, never stored. Mixed-currency exclusion lives in `BudgetProgress` alone, the way per-currency summing lives in `ExpenseTotals` alone.
+- **Data.** `BudgetTargetEntity` + `BudgetTargetDao`, database version `2`, explicit `Migration(1, 2)`, `2.json` committed next to `1.json`. FK to `categories` with `ON DELETE CASCADE`. Upsert keyed on `categoryId` (including the `NULL` overall row), not `REPLACE`.
+- **Log.** One live remaining line under the amount, per ARCHITECTURE §8.1.8: reflects the digit buffer, shows only the halves that have targets, reads `over by …` past the target, and never disables Save. No new tap, no new route.
+- **Dashboard.** `history` route renamed `dashboard` (package `presentation/history/` → `presentation/dashboard/`). Budget overview above the untouched period chips + list: overall `Canvas` arc, per-category `Canvas` bars with target ticks. Always the current calendar month, independent of the period chips. Tapping the arc or a bar opens the target dialog, which reuses the Log digit-buffer field; empty clears.
+- **Tests.** JVM: `BudgetProgress` (remaining, exactly-at-target, over, zero target, foreign currency excluded, no target), the dashboard ViewModel, and the Log remaining line against the buffer. `androidTest`: `MigrationTestHelper` 1 → 2 asserting v1 expenses survive; DAO cascade on category delete. Compose smoke: no meter when no target exists.
+
+**Out**
+
+- Weekly / per-paycheck / rolling budget periods, rollover of unspent budget, per-month target history.
+- Trend line, donut, or any second chart beyond the meter and the bars.
+- A charting Gradle dependency (DESIGN §3: hand-drawn `Canvas`).
+- Notifications, warnings, or any block on saving over budget.
+- Targets in the CSV or share payloads — §9.3 columns are unchanged.
+- A settings screen. Targets are set from the dashboard dialog only.
+
+**Exit criteria**
+
+- [ ] IDEA, ARCHITECTURE, DESIGN, and this file agree that budgets are in MVP, and the doc commit lands before the feature commits.
+- [ ] With no target set, Log shows no remaining line and the dashboard shows no meter — both screens are visually identical to sprint 6.
+- [ ] Setting an overall target makes the remaining line appear on Log; typing digits changes it live; clearing the target makes it disappear again.
+- [ ] Spending past a target shows `over by …` and the error color on the meter, and Save still works.
+- [ ] An expense in a currency other than the target's currency does not move the meter.
+- [ ] Upgrading a v1 database to v2 keeps every expense, category, and receipt. Proven by a `MigrationTestHelper` test, not only by a fresh install.
+- [ ] Deleting a category removes its target row (FK cascade) and leaves no orphan.
+- [ ] The period chips still filter only the list; the overview stays on the current month.
+- [ ] Share text and CSV output are byte-identical to sprint 5 for the same data.
+- [ ] No logged amount anywhere in the app is tinted green or red.
+- [ ] No new Gradle dependency, no new nav route, no new tap on the log path.
+
+---
+
+## Sprint 8 — Signed release
 
 **Outcome:** A git tag `v*` produces a minified, signed APK on GitHub Releases. Secrets never enter git. `main` stays releasable.
 
@@ -271,13 +314,14 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## MVP is done when
 
-All seven sprints’ exit criteria are checked, and ARCHITECTURE §16 holds:
+All eight sprints’ exit criteria are checked, and ARCHITECTURE §16 holds:
 
 - An implementer can explain the tree from ARCHITECTURE §4 without a second pattern.
 - The log path is open → type amount → tap category → optional receipt → save. No extra screen.
 - Domain tests run on the JVM with zero Android runtime.
 - Uninstall removes all expenses and receipt files.
 - Share and CSV work with no `INTERNET` permission.
+- A monthly target, when set, is visible while typing an amount; when unset, it is invisible everywhere.
 - A tagged commit produces a signed APK in CI without secrets in git.
 
 ---
@@ -289,7 +333,8 @@ Do not schedule, stub APIs, or “leave hooks” for:
 - Cloud / REST sync, Google Sheets, WorkManager network jobs
 - Biometric or PIN lock
 - OCR, in-app CameraX
-- Multi-currency wallets, accounts, budgets, recurring expenses
+- Multi-currency wallets, accounts, recurring expenses
+- Budget periods other than the calendar month, rollover, per-month target history
 - Note / merchant field, date picker on Log, bottom navigation on the primary path
 
 Those need a spec change in IDEA and ARCHITECTURE before they get a sprint.
@@ -303,5 +348,7 @@ Those need a spec change in IDEA and ARCHITECTURE before they get a sprint.
 3. Custom categories wait for sprint 4 so sprint 2 stays the seeded POS loop.
 4. Save & Share waits for sprint 5 even though the button is specified on Log; sprint 2 ships Save only.
 5. One `:app` module for the whole sequence.
+6. Sprint 7 is the only sprint allowed to change the Room schema after v1 shipped. Its approval (ARCHITECTURE §15) does not extend to a v3.
+7. Signed release moves from sprint 7 to sprint 8 unchanged — its content was not renegotiated, only renumbered.
 
 → Correct these if they are wrong; the sprint boundaries should change before implementation, not after.

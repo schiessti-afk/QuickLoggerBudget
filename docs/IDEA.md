@@ -24,6 +24,7 @@ QuickLogger turns expense logging into a reactive, single-action workflow:
 * **Single-Tap Categorization:** Prominent, customizable chips eliminate nested dropdowns.
 * **Isolated Receipt Storage:** Camera captures (`ActivityResultContracts.TakePicture`) and gallery picks (`PickVisualMedia`) are copied into private app storage (`context.filesDir`). Nothing is written to the device gallery or `MediaStore`.
 * **WhatsApp-oriented sharing:** After save, a plain-text caption (WhatsApp `*bold*` markup allowed, not Markdown/HTML) goes out through the **system share sheet**. Copy may say “WhatsApp”; the OS chooses the destination. The app does not target `com.whatsapp`.
+* **Budget without bookkeeping:** An optional monthly target — overall and per category — turns the amount field into a live "what's left" readout. Setting a target is two taps on the dashboard; not setting one changes nothing about the app.
 * **Independent Distribution:** Built and published as a standalone, signed APK without platform store gatekeeping.
 
 ---
@@ -36,7 +37,7 @@ QuickLogger turns expense logging into a reactive, single-action workflow:
 
 ### Persona B: Shared Household / Personal Budgeter
 * **Scenario:** Manages daily cash expenses (bakeries, markets, street vendors).
-* **Workflow:** Quickly captures micro-transactions on the go. At the end of the week, exports a formatted WhatsApp summary or `.csv` to reconcile with household finances.
+* **Workflow:** Quickly captures micro-transactions on the go. Sets a monthly grocery ceiling once and sees the remaining balance while typing each amount. At the end of the week, exports a formatted WhatsApp summary or `.csv` to reconcile with household finances.
 
 ---
 
@@ -80,6 +81,7 @@ QuickLogger turns expense logging into a reactive, single-action workflow:
 * Gallery receipt import via the system photo picker (`PickVisualMedia`), copied into private storage.
 * WhatsApp-oriented plain-text share (single log and day/week/month summaries) via the system share sheet.
 * `.csv` export via Android `FileProvider`.
+* Monthly spending targets: one overall and one per category, with remaining-budget feedback on the log screen and a dashboard that visualizes progress.
 * Automated standalone signed APK release via GitHub Actions.
 
 ### Explicitly Out-of-Scope for MVP (Roadmap)
@@ -88,5 +90,7 @@ QuickLogger turns expense logging into a reactive, single-action workflow:
 * Biometric authentication / PIN protection.
 * Optical Character Recognition (OCR) for automatic receipt parsing.
 * In-app CameraX preview.
-* Multi-currency wallets, accounts, or budgets.
+* Multi-currency wallets or accounts.
+* Budget periods other than the calendar month (weekly, per-paycheck, rolling 30 days).
+* Rollover of unspent budget into the next month.
 * Recurring expenses.

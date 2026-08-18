@@ -29,7 +29,7 @@ Primary goals:
 │                     Presentation Layer                      │
 │   Jetpack Compose, Material 3                               │
 │   ViewModels expose StateFlow; UI sends events upward       │
-│   Log, History, chips, amount field, share sheet            │
+│   Log, Dashboard, chips, amount field, share sheet          │
 └──────────────────────────────┬──────────────────────────────┘
                                │ depends on
 ┌──────────────────────────────▼──────────────────────────────┐
@@ -91,6 +91,7 @@ In scope (must be designed here):
 - Gallery import via the system photo picker (`PickVisualMedia`)
 - WhatsApp-oriented text share for one expense and for day/week/month summaries
 - CSV export via `FileProvider`
+- Monthly spending targets (one overall, one per category) with remaining feedback on Log and a dashboard
 - Signed APK on git tag
 
 Out of scope (do not design or stub APIs for these):
@@ -100,7 +101,8 @@ Out of scope (do not design or stub APIs for these):
 - Biometric or PIN lock
 - OCR
 - In-app CameraX preview
-- Multi-currency wallets, accounts, or budgets
+- Multi-currency wallets or accounts
+- Budget periods other than the calendar month, and rollover of unspent budget
 - Recurring expenses
 
 ---
@@ -153,7 +155,7 @@ app/
       presentation/
         navigation/                  // NavHost, routes
         log/                         // Log screen + ViewModel
-        history/                     // History + period export
+        dashboard/                   // Dashboard: budget overview + expense list
         categories/                  // add/rename/delete (not on the primary path)
         components/                  // amount field, category chips, receipt thumb
         theme/
@@ -314,13 +316,36 @@ Custom categories can be added from a `+` chip on the log screen (dialog, not a 
 
 All timestamps stored as epoch millis UTC. Display and range bounds use the device default `ZoneId`. Weeks are ISO-style Monday start even on US locales.
 
+### 6.5 Budget targets
+
+A target is an optional ceiling for the **current calendar month**. It is a standing value, not a per-month record: editing it changes the current month and every month after it. There is no history of “what the target was in March”.
+
+```kotlin
+data class BudgetTarget(
+    val categoryId: Long?,    // null = the overall monthly target
+    val amount: Money,
+)
+```
+
+| Rule | Definition |
+| --- | --- |
+| Cardinality | At most one overall target (`categoryId == null`) and at most one target per category. |
+| Period | First day of the current month 00:00 local through now, i.e. `PeriodBounds` month. Not configurable. |
+| Currency | `Currency.getInstance(Locale.getDefault()).currencyCode` **at the moment the target is set**, stored on the target and never rewritten — the same rule as `Expense`. |
+| Progress | Only expenses whose `currencyCode` equals the target's count toward it. Other codes are excluded, never converted. There is no FX rate in this app. |
+| Independence | The overall target and the per-category targets are unrelated numbers. Category targets are **not** validated to sum to ≤ the overall target; flagging that mismatch would be a nag, not information. |
+| Clearing | Setting an empty or zero amount deletes the row. Absent target = the feature is invisible: no line on Log, no meter on the dashboard, no empty-state prompt. |
+| Category delete | The target row goes with the category (`ON DELETE CASCADE`). Expenses reassigned to `Other` start counting against `Other`'s target from that moment; nothing is recomputed retroactively, because progress is always derived from the expense rows, never stored. |
+
+`BudgetProgress` is a pure calculator over `(targets, expenses in month)`. It produces, per target, `spent`, `remaining` (may be negative), and a `ratio`. It stores nothing. Callers must not compute remaining themselves — the mixed-currency exclusion rule lives in exactly one place, like `ExpenseTotals`.
+
 ---
 
 ## 7. Data Layer
 
 ### 7.1 Room
 
-Database name: `quicklogger.db`. Version starts at `1`. `exportSchema = true`; schema JSON is committed under `app/schemas/`.
+Database name: `quicklogger.db`. Version `2` (v1 shipped expenses and categories; v2 adds budget targets). `exportSchema = true`; every version's schema JSON is committed under `app/schemas/`.
 
 ```text
 CategoryEntity
@@ -340,20 +365,35 @@ ExpenseEntity
   createdAtEpochMs     INTEGER NOT NULL
   updatedAtEpochMs     INTEGER NOT NULL
 
+BudgetTargetEntity                          (added in v2)
+  id            INTEGER PK AUTOINCREMENT
+  categoryId    INTEGER            → CategoryEntity.id, NULL = overall target
+  amountMinor   INTEGER NOT NULL
+  currencyCode  TEXT NOT NULL
+
 INDEX expenses(occurredAtEpochMs DESC)
 INDEX expenses(categoryId)
+UNIQUE INDEX budget_targets(categoryId)     -- SQLite treats NULLs as distinct,
+                                            -- so the single overall row is
+                                            -- enforced by upsert-by-null in the
+                                            -- DAO, not by this index
 ```
+
+`budget_targets.categoryId` is a foreign key to `categories.id` with `ON DELETE CASCADE`: deleting a category takes its target with it in the same statement, so no orphan target can survive a category delete.
 
 DAOs:
 
 - `CategoryDao`: `observeAll(): Flow<List<CategoryEntity>>`, insert, update, delete, `getById`.
 - `ExpenseDao`: `observeAllNewestFirst(): Flow<List<ExpenseEntity>>`, `observeInRange(from, to)`, insert, update, delete, `getById`.
+- `BudgetTargetDao`: `observeAll(): Flow<List<BudgetTargetEntity>>`, `upsertOverall`, `upsertForCategory`, `deleteOverall`, `deleteForCategory`. Upsert is “update, and insert if no row changed”, keyed on `categoryId` (including the `NULL` overall row) — not `REPLACE`, which would churn the primary key.
 
 Queries stay parameterized. No string-concatenated SQL.
 
 On first open, a Room callback seeds the six default categories if the table is empty.
 
 Migrations: every schema change gets an explicit `Migration`. Destructive `fallbackToDestructiveMigration()` is allowed only in debug.
+
+`Migration(1, 2)` creates `budget_targets` and its index. It touches no existing table, so an app updated from v1 keeps every expense, category, and receipt, and simply has no targets set. It is covered by a `MigrationTestHelper` test against the committed `1.json`, not only by a fresh-install test.
 
 ### 7.2 Receipt files
 
@@ -388,21 +428,24 @@ CSV files are created under `cacheDir/exports/` immediately before the share she
 
 ## 8. Presentation: Screens and Navigation
 
-One `MainActivity`. Start destination is **Log**. There is no bottom navigation on the primary path — a persistent tab bar is extra chrome for a POS-style logger. History is a top-bar action (list icon) on Log.
+One `MainActivity`. Start destination is **Log**. There is no bottom navigation on the primary path — a persistent tab bar is extra chrome for a POS-style logger. The Dashboard is a top-bar action (list icon) on Log, and it navigates back up to Log.
 
 ```
-Log  ──push──►  History  ──push──►  ExpenseEdit
-                  │
-                  └── dialog / sheet: period share / CSV
+Log  ──push──►  Dashboard  ──push──►  ExpenseEdit
+                   │
+                   ├── dialog: set / clear a budget target
+                   └── dialog / sheet: period share / CSV
 ```
 
 | Route | Role |
 | --- | --- |
-| `log` | Amount (focused), category chips, optional receipt thumb, Save, Save & Share. |
-| `history` | Newest-first list, period chips (day / week / month), share text, export CSV. |
+| `log` | Amount (focused), category chips, remaining-budget line, optional receipt thumb, Save, Save & Share. |
+| `dashboard` | Monthly budget overview (meter + category bars), then newest-first list with period chips (day / week / month), share text, export CSV. |
 | `expense_edit/{id}` | Edit amount, category, receipt, occurred time; delete. Not on the fast path. |
 
-Category create is a dialog on Log (`+` chip), not its own nav route. The `presentation/categories/` package holds that dialog (and rename/delete UI). Rename/delete can live on History overflow or a lightweight categories screen if the dialog would otherwise overflow.
+The route renamed from `history` to `dashboard` in sprint 7. The list did not move: the dashboard *is* the old History screen with a budget overview above it. Setting a target is a dialog on that screen, not a fourth route — same rule as category create.
+
+Category create is a dialog on Log (`+` chip), not its own nav route. The `presentation/categories/` package holds that dialog (and rename/delete UI). Rename/delete can live on the Dashboard overflow or a lightweight categories screen if the dialog would otherwise overflow.
 
 ### 8.1 Log screen behavior
 
@@ -413,12 +456,29 @@ Category create is a dialog on Log (`+` chip), not its own nav route. The `prese
 5. **Save** persists and resets the form (amount cleared, category kept, receipt cleared) so the next log is immediate.
 6. **Save & Share** persists, resets, then emits a share event with the formatted text (and receipt image if present).
 7. Invalid save (empty amount) does not navigate and does not write Room. Show inline validation. A missing category is a defensive check only (seed + radio selection should make it unreachable).
+8. **Remaining-budget line** (sprint 7). One line below the amount, e.g. `Food 120.00 left · Month 430.00 left`. Rules:
+   - It is **live**: it subtracts the amount currently in the digit buffer, so the number is what this entry *would* leave. It is not the balance before typing.
+   - Each half renders only if that target exists. Selected category has no target → only the month half. Neither exists → the line is absent and reserves no vertical space.
+   - Past the target it reads `over by 12.00` in the error role. It never disables Save, never opens a dialog, and never blocks. A budget is information, not a lock.
+   - It is a `Text`, not a tappable control. No new tap enters the log path.
 
-### 8.2 History
+### 8.2 Dashboard
+
+One vertical scroll, in this order:
+
+1. **Budget overview** (only the parts that exist).
+   - Overall meter: this month's spend against the overall target, with the remaining value in the centre.
+   - Per-category bars: one row per category, its share of the month, and a tick where that category's target sits.
+   - Tapping the meter opens the target dialog for the overall budget; tapping a bar opens it for that category. The dialog reuses the Log digit-buffer field. Empty or zero clears the target.
+   - **No targets and no spend at all → the overview is not drawn.** The screen falls back to exactly what it was before sprint 7.
+2. **Period chips + list**, unchanged: day / week / month, newest first, tap a row to edit, overflow for share text and CSV.
+
+The overview is **always the current calendar month**, regardless of the period chips. The chips filter the list and the share/CSV payload only. Pro-rating a monthly target into a “day budget” would invent a number the user never set.
 
 - List rows: formatted amount, category name, local date/time, receipt indicator.
-- Period filter changes the list and the payload for share/CSV.
+- Period filter changes the list and the payload for share/CSV. It does not change the overview.
 - Empty state is a short line, not a marketing screen.
+- Share text and CSV payloads are **unchanged by this sprint**. Targets are not exported; the CSV columns in §9.3 stay as they are.
 
 ---
 
@@ -498,9 +558,9 @@ Turbine is **not** on the classpath. `LogUiState` is a single `MutableStateFlow`
 
 | Layer | Where | What |
 | --- | --- | --- |
-| Domain use cases & formatters | `src/test` | Save validation, CSV lines, share text, period bounds (Monday week), mixed-currency totals, category reassignment. |
+| Domain use cases & formatters | `src/test` | Save validation, CSV lines, share text, period bounds (Monday week), mixed-currency totals, category reassignment, budget progress (remaining, over-target, currency exclusion). |
 | ViewModels | `src/test` | Events → `UiState`; use case fakes; last-category radio fallback; `StandardTestDispatcher`. |
-| Room DAOs | `src/androidTest` | In-memory database, migrations against committed schemas. |
+| Room DAOs | `src/androidTest` | In-memory database, migrations against committed schemas. `Migration(1, 2)` is tested with `MigrationTestHelper` starting from the committed `1.json`, asserting v1 expenses survive. |
 | Compose | `src/androidTest` (smoke) | Amount focus on launch; save disabled when amount empty. Not a full screenshot suite in MVP. |
 
 Do not mock use cases *and* repositories in the same test. ViewModel tests fake use cases; use case tests fake repositories.
@@ -594,7 +654,7 @@ class SaveExpense(
 
 - New Gradle dependencies.
 - New screens or taps on the log flow.
-- Room schema changes after version 1 is shipped.
+- Room schema changes after a version is shipped. *(Approved once, for v2 / `budget_targets`, sprint 7. The approval does not generalize to v3.)*
 - Changing `minSdk`, `applicationId`, or how currency is chosen.
 - Enabling backup, encryption, or any permission.
 - Adding a note/merchant field, date picker on Log, or bottom navigation.
@@ -637,7 +697,7 @@ Decisions below are in force until contradicted. Correct them before implementat
 5. Gallery import is in MVP, not camera-only.
 6. **Save & Share** sends the receipt image plus caption when a photo exists; otherwise text only.
 7. No note/merchant field.
-8. No date picker on the Log screen; `occurredAt` defaults to now. **History edit can change `occurredAt`.**
+8. No date picker on the Log screen; `occurredAt` defaults to now. **Expense edit can change `occurredAt`.**
 9. Deleting a category moves its expenses to **Other**.
 10. No in-app CameraX; system camera + photo picker only.
 11. `allowBackup` is false.
@@ -649,6 +709,11 @@ Decisions below are in force until contradicted. Correct them before implementat
 17. License is **MIT**, copyright Micha Schiess.
 18. CSV file name is `quicklogger-YYYY-MM-DD.csv` using the **export** date, including for week/month exports.
 19. GitHub clone URL is `https://github.com/schiessti-afk/QuickLoggerBudget.git`.
+20. **Budget targets are in MVP** (sprint 7), reversing the original out-of-scope line. One standing overall target plus one per category; calendar month only; no rollover, no weekly or per-paycheck period.
+21. Targets live in Room (`budget_targets`, schema v2 + `Migration(1, 2)`), not SharedPreferences, so the category foreign key can cascade on delete and the DAO can expose a reactive `Flow`.
+22. A target carries the device-locale currency at the moment it is set. Progress counts only expenses with that same code; other codes are excluded, never converted.
+23. `history` is renamed `dashboard`. The expense list stays on that screen, under the budget overview. No fourth route, no bottom navigation.
+24. The remaining-budget line on Log is live against the digit buffer and never blocks a save.
 
 ### Still open (non-blocking)
 

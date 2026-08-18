@@ -30,7 +30,8 @@ These are already decided. Visual work may only *express* them.
 | Open → amount → category → optional receipt → save | Log is one screen. No onboarding carousel, no bottom nav on the primary path. |
 | Amount focused + keyboard up on launch | The amount is the hero. Everything else is secondary. |
 | Category chips in radio mode | Chips must read as a single selection, default-visible on a typical phone. |
-| History is a top-bar list action on Log | App bars stay thin. History is a destination, not a tab. |
+| Dashboard is a top-bar list action on Log | App bars stay thin. The dashboard is a destination, not a tab. It carries a back arrow to Log. |
+| An unset budget is invisible | No meter, no placeholder bar, no "set a budget" prompt. The screen must look finished with zero targets. |
 | Empty history is a short line, not a marketing screen | One illustration; copy stays one sentence. |
 | English UI strings; numbers/dates follow device locale | Layouts must survive long currency strings (`R$ 1.234,56`, `$1,234.56`). |
 | Material 3 + Compose | Tokens, components, and shapes come from M3. Custom art sits *on* that system. |
@@ -40,7 +41,7 @@ These are already decided. Visual work may only *express* them.
 
 - Keep the log path a sub-two-second action. Extra taps need an explicit product reason (ARCHITECTURE).
 - Force **light** color scheme. Do not follow `uiMode` dark. Do not use Material You / dynamic color — the seed below is the brand.
-- Keep touch targets at least 48 dp for Save, Save & Share, camera, gallery, and History.
+- Keep touch targets at least 48 dp for Save, Save & Share, camera, gallery, History, and the budget meter / bars (they are tappable).
 
 **Never**
 
@@ -48,7 +49,8 @@ These are already decided. Visual work may only *express* them.
 - Put receipts, amounts, or category art in the device gallery.
 - Use a second typeface downloaded at runtime.
 - Decorate empty states into a landing page.
-- Color amounts green/red (this is a logger, not a P&L).
+- Color a **logged amount** green/red. The hero amount on Log, the rows in the list, and the period totals stay ink `#2A241F`. This is a logger, not a P&L.
+  *(Budget surfaces are the exception — see §5.4. A meter has a status; a receipt does not.)*
 
 ---
 
@@ -59,13 +61,15 @@ These are already decided. Visual work may only *express* them.
 | Personality | **Warm stationery** | Paper, iron-gall ink, a folded receipt. Quiet, tactile, not a bank app. |
 | Color world | **Fixed seed** (not Material You) | Sealing-wax primary on cream paper. See §5. |
 | Theme | **Light only** | No dark `ColorScheme` in MVP. |
-| Density | **Compact POS on paper** | Tight Log layout; History can breathe a little more. |
+| Density | **Compact POS on paper** | Tight Log layout; the dashboard can breathe a little more. |
 | Shape | **Soft paper corners** | Chips and cards ~8–12 dp. Not stadium-pill candy, not sharp tickets. |
 | Type | **Platform M3** | Amount uses the largest display/headline role with tabular figures. No bundled display font unless we add `res/font` later. |
 | Icon language | **Custom 6-category set + Material for chrome** | Camera, gallery, History, delete stay Material Symbols. Seeded categories use generated pictograms (§8.5). Custom user categories fall back to a generic mark. |
 | Motion | **Instant paper** | Chip fill, no bounce. Save clears immediately. No confetti. |
 
 **Line weight (all generated art):** even ink stroke, ~2 px at 24 dp, slightly rounded ends. Not sketchy, not 3D, not neon.
+
+**No chart library.** The meter and bars are hand-drawn with Compose `Canvas` / `drawBehind`. A charting dependency would bring its own type scale, palette, and animation curves — a second design system inside a file whose whole point is one ink family. Two shapes do not justify that.
 
 ---
 
@@ -79,10 +83,11 @@ The amount is the largest number on screen, ink on paper. Category chips sit dir
 
 ```
 ┌─────────────────────────────────┐
-│  [mark] QuickLogger     [list]  │  ← cream bar; list → History
+│  [mark] QuickLogger     [list]  │  ← cream bar; list → Dashboard
 ├─────────────────────────────────┤
 │                                 │
 │         R$  0,00                │  ← focused, keyboard up, ink
+│ Food 120,00 · Month 430,00 left │  ← §5.4; absent when no target
 │                                 │
 │  [🍴 Food] [🚌 Transport] …     │  ← FlowRow, radio chips + pictograms
 │  [ + ]                          │
@@ -96,9 +101,42 @@ The amount is the largest number on screen, ink on paper. Category chips sit dir
 
 Do not add a date picker, merchant field, or note on this screen.
 
-### 4.2 History
+The remaining line is `bodySmall`, one line, ellipsized rather than wrapped — it must never push the chips down or grow into a second block. It is text, not a chip or a button: nothing on it is tappable.
 
-Newest-first list on the same cream surface. Period chips (day / week / month) use the brand seed, not per-category color. Rows: amount (ink), category name + small pictogram, local date/time, receipt indicator.
+### 4.2 Dashboard
+
+The old History screen with a budget overview above it. Same cream surface, one scroll, back arrow to Log.
+
+```
+┌─────────────────────────────────┐
+│  ←   Dashboard            [⋮]   │  ← back to Log; overflow = share/CSV
+├─────────────────────────────────┤
+│         ╭─────────────╮         │
+│        ╱   430,00      ╲        │  ← remaining, ink, largest number here
+│       │     left        │       │     arc: ledger green, red past 100%
+│        ╲  of 1.200,00  ╱        │
+│         ╰─────────────╯         │
+│                                 │
+│  Food        ███████▌ ┊    770  │  ← accent fill, ┊ = target tick
+│  Transport   ████▏    ┊    120  │
+│  Supplies    ██▊           45   │  ← no tick: no target set
+│                                 │
+├─────────────────────────────────┤
+│  [Day] [Week] [Month]           │  ← filters the LIST only
+│  R$ 45,00   Food     14:22   📎 │
+│  R$ 12,00   Transport 09:05     │
+└─────────────────────────────────┘
+```
+
+**Overview.** The arc is the only place a number beats the list for size. Track is `outline`; fill is the §5.4 status color. The centre shows remaining in ink, with `of <target>` beneath it in on-surface variant. Past the target the centre reads `over by …`.
+
+**Bars.** One row per category that has spend this month **or** a target, spend-descending. The fill is that category's §5.2 accent — identity beats status here, otherwise every bar in a good month is the same green and the kit stops scanning. The target tick is a thin vertical ink rule at the target position; the segment drawn *past* the tick switches to over-red. A category with no target has no tick and never turns red.
+
+**Nothing set, nothing spent → draw neither.** The screen is then byte-for-byte the old History, including the §8.3 empty illustration.
+
+**Target dialog.** Tapping the arc or a bar opens a short dialog: the category name (or "Monthly budget"), one amount field reusing Log's digit buffer, confirm. Clearing the field and confirming removes the target. No second screen, no slider, no percentage picker.
+
+Period chips (day / week / month) use the brand seed, not per-category color, and filter only the list. List rows: amount (ink), category name + small pictogram, local date/time, receipt indicator.
 
 Empty state: one short line (`strings.xml`) plus the §8.3 illustration. No “Get started” checklist.
 
@@ -131,9 +169,12 @@ Confirmed. The Material 3 seed is **sealing-wax** `#9A4A32`.
 | On surface (ink) | `#2A241F` | Amount, titles, body |
 | On surface variant | `#6F675E` | Timestamps, hints |
 | Outline | `#C9BBA8` | Unselected chip stroke, dividers |
-| Error | `#9B2F2F` | Validation, delete |
+| Error / over budget | `#9B2F2F` | Validation, delete, budget past 100% |
+| Ledger green | `#3F6B45` | Budget under target (meter fill, remaining text) |
 
 Map these through Material 3 roles (`primary`, `onPrimary`, `surface`, `onSurface`, `error`, `outline`). Build the Compose `lightColorScheme` from this table (or from a seed-generated scheme that is then **edited** so surface stays cream, not pink-tinted).
+
+Ledger green is a **brand extension, not a Material role.** Do not map it to `tertiary` or invent a green `ColorScheme`; it is a named constant used by budget surfaces only (§5.4). Both status colors clear WCAG 2.2 AA on paper `#F6F1E8` (green ≈ 5.4:1, red ≈ 6.6:1), so status text is readable, not just decorative.
 
 Do **not** enable `dynamicColor`. Light scheme only.
 
@@ -152,6 +193,8 @@ Seeded categories each have a distinct **ink** accent. Unselected chip: cream fi
 
 Custom (user-created) categories: Other accent + Other pictogram.
 
+On the dashboard, a category bar is filled with its accent from this table. Status color never replaces the accent — it only paints the over-target overflow segment (§5.4).
+
 ### 5.3 Type
 
 - Amount: largest type on Log (`displaySmall` or `headlineLarge`). Prefer tabular/lining figures so the value does not jump while typing (`FontFeatureSettings("tnum")` if the platform face supports it).
@@ -159,7 +202,23 @@ Custom (user-created) categories: Other accent + Other pictogram.
 - History rows: amount `titleMedium`; metadata `bodySmall` in on-surface variant.
 - No custom downloadable font in MVP.
 
-### 5.4 Motion
+### 5.4 Budget status color
+
+The one place this app is allowed to speak in green and red. Scope it tightly:
+
+| Surface | Under target | Over target |
+| --- | --- | --- |
+| Overall meter arc fill | Ledger green `#3F6B45` | Error `#9B2F2F` for the whole arc |
+| Meter centre text | Ink `#2A241F` | Error `#9B2F2F` |
+| Category bar fill | Category accent (§5.2) | Accent up to the tick, error `#9B2F2F` beyond it |
+| Remaining line on Log | On-surface variant `#6F675E` | Error `#9B2F2F` |
+| Logged amounts, list rows, period totals | **Ink. Always.** | **Ink. Always.** |
+
+Two states only — under and over. No amber "getting close" band: a third color turns a readout into a traffic light, and the number already says how close you are.
+
+Status is never carried by color alone (WCAG 2.2 §1.4.1): over budget also changes the wording from `430,00 left` to `over by 120,00`, so the meaning survives a grayscale screenshot and a red-green color vision deficiency.
+
+### 5.5 Motion
 
 - IME appearance is the only “entrance.”
 - Chip selection: M3 default color/elevation change, no bounce.
@@ -181,7 +240,11 @@ Custom (user-created) categories: Other accent + Other pictogram.
 | Receipt thumb | Small rounded image + remove | Coil; private file path; 8 dp corners |
 | History row | Compact row | Pictogram 20 dp; receipt indicator is Material `photo` |
 | Period | `FilterChip` | Day / week / month; brand seed, not category color |
-| Top bar | `TopAppBar` | Wordmark/glyph 24 dp + title; History action |
+| Top bar | `TopAppBar` | Wordmark/glyph 24 dp + title; Dashboard action on Log, back arrow on Dashboard |
+| Remaining line (Log) | `Text`, `bodySmall` | One line, ellipsized; §5.4 color; not tappable; absent when no target |
+| Budget meter | Compose `Canvas` arc | Rounded caps, ~12 dp stroke, track `outline`; 48 dp hit box; opens the target dialog |
+| Category bar | Compose `Canvas` row | 8 dp rounded track, accent fill, 1 dp ink target tick; whole row is the 48 dp hit box |
+| Target dialog | `AlertDialog` | Title = category name or "Monthly budget"; reuses the Log amount field; empty = clear |
 
 ---
 
@@ -273,6 +336,9 @@ This design is doing its job when:
 - [ ] Each seeded category chip shows its pictogram and accent; selected state stays readable (ink label).
 - [ ] Launcher fold, top-bar glyph, empty state, and six pictograms look like one ink family.
 - [ ] No generated asset is required to complete a save.
+- [ ] With no targets set, Log and the dashboard look exactly as they did before sprint 7 — no empty meter, no prompt.
+- [ ] Green and red appear only on budget surfaces (§5.4). No logged amount is ever tinted.
+- [ ] Over-budget is legible in grayscale, because the wording changes too.
 - [ ] Implementers can theme Compose from this file without inventing a second palette.
 
 ---
@@ -293,6 +359,11 @@ This design is doing its job when:
 10. Beauty must not add taps, routes, or a splash delay.
 11. Brand seed is `#9A4A32` (confirmed).
 12. Raster masters for §8 are in `assets/` (2026-08-17).
+13. Budget status may use green and red (§5.4), overriding the original blanket "never green/red" rule. The override is scoped to budget surfaces; logged amounts stay ink. Approved 2026-08-18.
+14. Ledger green `#3F6B45` is a brand constant, not a Material role. No green `ColorScheme`.
+15. The meter and category bars are hand-drawn Compose `Canvas`. No charting dependency.
+16. Second page is the **Dashboard**: budget overview above the existing list, not a replacement for it.
+17. Targets are set by tapping the meter or a bar (dialog), not on a settings screen.
 
 ### Still open
 
