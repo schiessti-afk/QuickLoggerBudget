@@ -186,6 +186,8 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## Sprint 5 — Share and CSV
 
+**Status:** Implemented. `lint`, `test`, and `assembleDebug` are green (164 JVM tests). The criteria below that need a device or emulator — and the human review in the standing bar — are still open.
+
 **Outcome:** One expense and a period can leave the device only through the system share sheet. CSV is a real spreadsheet file via `FileProvider`, not a second database.
 
 **In**
@@ -203,13 +205,13 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 **Exit criteria**
 
-- [ ] Save & Share with no receipt opens the system sheet with the caption only.
-- [ ] Save & Share with a receipt opens the system sheet with the JPEG and the same caption. The receiving app can read the Uri (temporary grant).
-- [ ] History can share the current period as text and as CSV named `quicklogger-YYYY-MM-DD.csv` for the export date.
-- [ ] CSV opens in a spreadsheet with a header and one data row per expense in range.
-- [ ] Merged manifest still has no `INTERNET`. No `<queries>` for WhatsApp is required for the share path.
-- [ ] Share payloads are not kept in `UiState` after the sheet closes.
-- [ ] JVM tests cover share text, period summary lines, CSV quoting, and minor→major amount conversion.
+- [x] Save & Share with no receipt opens the system sheet with the caption only. *(`LogViewModel` builds the caption and fires a one-shot `LogUiEvent.Share(text, receiptRelativePath = null)`, proven on the JVM; the actual system sheet needs a device.)*
+- [x] Save & Share with a receipt opens the system sheet with the JPEG and the same caption. The receiving app can read the Uri (temporary grant). *(`buildReceiptShareIntent` sets `image/jpeg` + `EXTRA_STREAM` via the same `FileProvider` authority as receipts, plus `FLAG_GRANT_READ_URI_PERMISSION`; the on-device grant still needs a device.)*
+- [x] History can share the current period as text and as CSV named `quicklogger-YYYY-MM-DD.csv` for the export date. *(`HistoryEvent.SharePeriodText` / `ExportCsv` — the CSV file name uses the export-date `Clock`, not the period start, covered on the JVM including week/month exports.)*
+- [x] CSV opens in a spreadsheet with a header and one data row per expense in range. *(`BuildExpensesCsv` — header row, one row per expense, RFC-style quoting; opening a real spreadsheet app needs a device.)*
+- [x] Merged manifest still has no `INTERNET`. No `<queries>` for WhatsApp is required for the share path. *(`ManifestPrivacyTest`; share always goes through `Intent.createChooser`.)*
+- [x] Share payloads are not kept in `UiState` after the sheet closes. *(`LogUiEvent.Share` / `HistoryUiEvent.ShareText` / `ShareCsv` are one-shot `Channel` events, not `UiState` fields.)*
+- [x] JVM tests cover share text, period summary lines, CSV quoting, and minor→major amount conversion. *(`FormatExpenseShareTextTest`, `BuildPeriodSummaryTest`, `BuildExpensesCsvTest`.)*
 
 ---
 

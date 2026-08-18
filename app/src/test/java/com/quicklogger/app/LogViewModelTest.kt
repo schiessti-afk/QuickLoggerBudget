@@ -4,20 +4,25 @@ import com.quicklogger.app.domain.model.Category
 import com.quicklogger.app.domain.usecase.CreateCategory
 import com.quicklogger.app.domain.usecase.CreateReceiptDraft
 import com.quicklogger.app.domain.usecase.DeleteReceipt
+import com.quicklogger.app.domain.usecase.FormatExpenseShareText
 import com.quicklogger.app.domain.usecase.ImportReceipt
 import com.quicklogger.app.domain.usecase.ObserveCategories
 import com.quicklogger.app.domain.usecase.ReceiptHasContent
 import com.quicklogger.app.domain.usecase.SaveExpense
 import com.quicklogger.app.presentation.log.LogEvent
+import com.quicklogger.app.presentation.log.LogUiEvent
 import com.quicklogger.app.presentation.log.LogViewModel
 import com.quicklogger.app.presentation.receipt.ReceiptAttachmentController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -73,9 +78,21 @@ class LogViewModelTest {
                 DeleteReceipt(receipts),
                 ReceiptHasContent(receipts),
             ),
+            formatExpenseShareText = FormatExpenseShareText(),
             localeProvider = Provider { locale },
+            zoneProvider = Provider { ZoneOffset.UTC },
         )
     }
+
+    /**
+     * Reads the next buffered `Share` event directly, rather than through a
+     * long-lived background collector: by the time this is called the event is
+     * already sitting in the channel's buffer, so `first()` returns without
+     * suspending. `withTimeoutOrNull` on a virtual clock returns `null` instantly
+     * when nothing is buffered, so this doubles as "no event fired".
+     */
+    private suspend fun nextShareEventOrNull(viewModel: LogViewModel): LogUiEvent.Share? =
+        withTimeoutOrNull(1) { viewModel.uiEvents.filterIsInstance<LogUiEvent.Share>().first() }
 
     // --- cold start selection (ARCHITECTURE §6.3) ---
 
@@ -287,5 +304,66 @@ class LogViewModelTest {
         advanceUntilIdle()
 
         assertEquals(seeded, viewModel.uiState.value.categories)
+    }
+
+    // --- Save & Share (ARCHITECTURE §9.1) ---
+
+    @Test
+    fun saveAndShareWritesTheExpenseAndFiresAShareEventWithNoReceipt() = runTest {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.onEvent(LogEvent.CategorySelected(food.id))
+        viewModel.onEvent(LogEvent.AmountChanged("4500"))
+
+        viewModel.onEvent(LogEvent.SaveAndShare)
+        advanceUntilIdle()
+
+        assertEquals(1, expenses.inserted.size)
+        val share = requireNotNull(nextShareEventOrNull(viewModel))
+        assertNull(share.receiptRelativePath)
+        assertTrue(share.text.contains("*QuickLogger*"))
+        assertTrue(share.text.contains("Food"))
+        assertTrue(share.text.contains("$45.00"))
+    }
+
+    @Test
+    fun saveAndShareIncludesTheReceiptWhenOneIsAttached() = runTest {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.onEvent(LogEvent.ReceiptPicked("content://media/external/images/42"))
+        advanceUntilIdle()
+        val attached = viewModel.uiState.value.receiptRelativePath
+        viewModel.onEvent(LogEvent.AmountChanged("4500"))
+
+        viewModel.onEvent(LogEvent.SaveAndShare)
+        advanceUntilIdle()
+
+        val share = requireNotNull(nextShareEventOrNull(viewModel))
+        assertEquals(attached, share.receiptRelativePath)
+    }
+
+    @Test
+    fun plainSaveDoesNotFireAShareEvent() = runTest {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.onEvent(LogEvent.AmountChanged("4500"))
+
+        viewModel.onEvent(LogEvent.Save)
+        advanceUntilIdle()
+
+        assertNull(nextShareEventOrNull(viewModel))
+    }
+
+    @Test
+    fun saveAndShareResetsTheFormJustLikePlainSave() = runTest {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.onEvent(LogEvent.AmountChanged("4500"))
+
+        viewModel.onEvent(LogEvent.SaveAndShare)
+        advanceUntilIdle()
+
+        assertEquals("", viewModel.uiState.value.amountDigits)
+        assertFalse(viewModel.uiState.value.isSaving)
     }
 }

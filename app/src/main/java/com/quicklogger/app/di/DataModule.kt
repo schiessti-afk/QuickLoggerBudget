@@ -6,11 +6,13 @@ import com.quicklogger.app.data.local.CategoryDao
 import com.quicklogger.app.data.local.ExpenseDao
 import com.quicklogger.app.data.local.QuickLoggerDatabase
 import com.quicklogger.app.data.local.SeedCategoriesCallback
+import com.quicklogger.app.data.export.CsvFileStore
 import com.quicklogger.app.data.preferences.SharedPreferencesLastCategoryStore
 import com.quicklogger.app.data.receipt.ReceiptFileStore
 import com.quicklogger.app.data.repository.RoomCategoryRepository
 import com.quicklogger.app.data.repository.RoomExpenseRepository
 import com.quicklogger.app.domain.repository.CategoryRepository
+import com.quicklogger.app.domain.repository.CsvExportStore
 import com.quicklogger.app.domain.repository.ExpenseRepository
 import com.quicklogger.app.domain.repository.LastCategoryStore
 import com.quicklogger.app.domain.repository.ReceiptStore
@@ -74,4 +76,7 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindReceiptStore(impl: ReceiptFileStore): ReceiptStore
+
+    @Binds
+    abstract fun bindCsvExportStore(impl: CsvFileStore): CsvExportStore
 }

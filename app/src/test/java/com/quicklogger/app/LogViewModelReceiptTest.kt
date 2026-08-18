@@ -4,6 +4,7 @@ import com.quicklogger.app.domain.model.Category
 import com.quicklogger.app.domain.usecase.CreateCategory
 import com.quicklogger.app.domain.usecase.CreateReceiptDraft
 import com.quicklogger.app.domain.usecase.DeleteReceipt
+import com.quicklogger.app.domain.usecase.FormatExpenseShareText
 import com.quicklogger.app.domain.usecase.ImportReceipt
 import com.quicklogger.app.domain.usecase.ObserveCategories
 import com.quicklogger.app.domain.usecase.ReceiptHasContent
@@ -70,7 +71,9 @@ class LogViewModelReceiptTest {
                 DeleteReceipt(receipts),
                 ReceiptHasContent(receipts),
             ),
+            formatExpenseShareText = FormatExpenseShareText(),
             localeProvider = Provider { Locale.US },
+            zoneProvider = Provider { ZoneOffset.UTC },
         )
     }
 

@@ -3,6 +3,7 @@ package com.quicklogger.app
 import com.quicklogger.app.domain.model.Category
 import com.quicklogger.app.domain.model.Expense
 import com.quicklogger.app.domain.repository.CategoryRepository
+import com.quicklogger.app.domain.repository.CsvExportStore
 import com.quicklogger.app.domain.repository.ExpenseRepository
 import com.quicklogger.app.domain.repository.LastCategoryStore
 import com.quicklogger.app.domain.repository.ReceiptError
@@ -122,6 +123,16 @@ class FakeReceiptStore(
 
     override suspend fun hasContent(relativePath: String): Boolean =
         (files[relativePath] ?: 0L) > 0L
+}
+
+/** In-memory `cacheDir/exports/`. [written] maps file name to its last-written content. */
+class FakeCsvExportStore : CsvExportStore {
+    val written = linkedMapOf<String, String>()
+
+    override suspend fun write(fileName: String, csv: String): String {
+        written[fileName] = csv
+        return fileName
+    }
 }
 
 class FakeLastCategoryStore(private var stored: Long? = null) : LastCategoryStore {

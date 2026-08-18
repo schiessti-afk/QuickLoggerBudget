@@ -1,8 +1,8 @@
 package com.quicklogger.app.presentation.log
 
 /**
- * Save & Share arrives in sprint 5; it is not stubbed here. Camera-launch is a
- * one-shot effect owned by `ReceiptAttachmentController.events`, not a `LogEvent`.
+ * Camera-launch is a one-shot effect owned by `ReceiptAttachmentController.events`
+ * (surfaced through [LogUiEvent]), not a `LogEvent`.
  */
 sealed interface LogEvent {
     data class AmountChanged(val raw: String) : LogEvent
@@ -10,6 +10,9 @@ sealed interface LogEvent {
     data class CategorySelected(val id: Long) : LogEvent
 
     data object Save : LogEvent
+
+    /** Persists, resets the form, then fires a [LogUiEvent.Share] (ARCHITECTURE §8.1). */
+    data object SaveAndShare : LogEvent
 
     /** User tapped the camera action. The draft file is created before launching. */
     data object CaptureReceipt : LogEvent

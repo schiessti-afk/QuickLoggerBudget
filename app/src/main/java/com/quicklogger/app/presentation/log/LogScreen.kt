@@ -16,6 +16,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -43,9 +44,11 @@ import com.quicklogger.app.presentation.categories.CreateCategoryDialog
 import com.quicklogger.app.presentation.components.AmountField
 import com.quicklogger.app.presentation.components.CategoryChips
 import com.quicklogger.app.presentation.components.ReceiptAttachment
+import com.quicklogger.app.presentation.components.buildReceiptShareIntent
+import com.quicklogger.app.presentation.components.buildTextShareIntent
+import com.quicklogger.app.presentation.components.launchShareChooser
 import com.quicklogger.app.presentation.components.receiptFile
 import com.quicklogger.app.presentation.components.receiptUri
-import com.quicklogger.app.presentation.receipt.ReceiptAttachmentUiEvent
 import java.io.File
 
 @Composable
@@ -71,8 +74,15 @@ fun LogScreen(
     LaunchedEffect(Unit) {
         viewModel.uiEvents.collect { event ->
             when (event) {
-                is ReceiptAttachmentUiEvent.LaunchCamera ->
+                is LogUiEvent.LaunchCamera ->
                     cameraLauncher.launch(receiptUri(context, event.relativePath))
+                is LogUiEvent.Share -> context.launchShareChooser(
+                    if (event.receiptRelativePath != null) {
+                        buildReceiptShareIntent(context, event.text, event.receiptRelativePath)
+                    } else {
+                        buildTextShareIntent(event.text)
+                    },
+                )
             }
         }
     }
@@ -188,6 +198,16 @@ internal fun LogScreenContent(
                 enabled = uiState.canSave,
             ) {
                 Text(stringResource(R.string.save))
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = { onEvent(LogEvent.SaveAndShare) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = uiState.canSave,
+            ) {
+                Text(stringResource(R.string.save_and_share))
             }
         }
     }

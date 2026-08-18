@@ -41,4 +41,8 @@
     <string name="close">Close</string>
     <string name="next">Next</string>
     <string name="ok">OK</string>
+    <string name="save_and_share">Save &amp; Share</string>
+    <string name="history_menu">More</string>
+    <string name="share_period">Share period</string>
+    <string name="export_csv">Export CSV</string>
 </resources>

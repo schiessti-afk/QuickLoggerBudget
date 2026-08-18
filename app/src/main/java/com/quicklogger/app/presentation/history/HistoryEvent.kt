@@ -8,4 +8,10 @@ import com.quicklogger.app.domain.model.Period
  */
 sealed interface HistoryEvent {
     data class PeriodSelected(val period: Period) : HistoryEvent
+
+    /** Shares the currently filtered period as text (ARCHITECTURE §9.2). */
+    data object SharePeriodText : HistoryEvent
+
+    /** Writes the currently filtered period to CSV and shares the file (ARCHITECTURE §9.3). */
+    data object ExportCsv : HistoryEvent
 }

@@ -47,11 +47,13 @@ class ManifestPrivacyTest {
     }
 
     @Test
-    fun fileProviderExposesOnlyTheReceiptsDirectory() {
+    fun fileProviderExposesOnlyTheReceiptsAndExportsDirectories() {
         val paths = File("src/main/res/xml/file_paths.xml").readText()
 
         assertTrue(paths.contains("<files-path"))
         assertTrue(paths.contains("path=\"receipts/\""))
+        assertTrue("CSV export needs a cache-path entry (ARCHITECTURE §7.3)", paths.contains("<cache-path"))
+        assertTrue(paths.contains("path=\"exports/\""))
         assertFalse("external storage must never be exposed", paths.contains("external-path"))
         assertFalse("the whole files dir must not be exposed", paths.contains("path=\".\""))
     }

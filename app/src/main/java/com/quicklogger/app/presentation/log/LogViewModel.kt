@@ -10,18 +10,24 @@ import com.quicklogger.app.domain.repository.LastCategoryStore
 import com.quicklogger.app.domain.usecase.CategoryError
 import com.quicklogger.app.domain.usecase.CreateCategory
 import com.quicklogger.app.domain.usecase.ExpenseError
+import com.quicklogger.app.domain.usecase.FormatExpenseShareText
 import com.quicklogger.app.domain.usecase.ObserveCategories
 import com.quicklogger.app.domain.usecase.SaveExpense
 import com.quicklogger.app.presentation.receipt.ReceiptAttachmentController
 import com.quicklogger.app.presentation.receipt.ReceiptAttachmentUiEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.ZoneId
 import java.util.Currency
 import java.util.Locale
 import javax.inject.Inject
@@ -34,15 +40,26 @@ class LogViewModel @Inject constructor(
     private val lastCategoryStore: LastCategoryStore,
     private val createCategory: CreateCategory,
     private val receiptAttachment: ReceiptAttachmentController,
+    private val formatExpenseShareText: FormatExpenseShareText,
     // A Provider, not a Locale: ViewModels survive configuration changes, so a
     // snapshot taken at construction would go stale after a locale switch.
     // ARCHITECTURE §6.1 fixes the currency at save time.
     private val localeProvider: Provider<Locale>,
+    private val zoneProvider: Provider<ZoneId>,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LogUiState())
     val uiState: StateFlow<LogUiState> = _uiState.asStateFlow()
 
-    val uiEvents: Flow<ReceiptAttachmentUiEvent> = receiptAttachment.events
+    private val _shareEvents = Channel<LogUiEvent.Share>(Channel.BUFFERED)
+
+    val uiEvents: Flow<LogUiEvent> = merge(
+        receiptAttachment.events.map { event ->
+            when (event) {
+                is ReceiptAttachmentUiEvent.LaunchCamera -> LogUiEvent.LaunchCamera(event.relativePath)
+            }
+        },
+        _shareEvents.receiveAsFlow(),
+    )
 
     init {
         viewModelScope.launch {
@@ -81,7 +98,8 @@ class LogViewModel @Inject constructor(
         when (event) {
             is LogEvent.AmountChanged -> updateAmount(event.raw)
             is LogEvent.CategorySelected -> selectCategory(event.id)
-            LogEvent.Save -> save()
+            LogEvent.Save -> save(shareAfterSave = false)
+            LogEvent.SaveAndShare -> save(shareAfterSave = true)
             LogEvent.CaptureReceipt -> viewModelScope.launch { receiptAttachment.capture() }
             is LogEvent.ReceiptCaptured ->
                 viewModelScope.launch { receiptAttachment.captureFinished(event.success) }
@@ -113,7 +131,8 @@ class LogViewModel @Inject constructor(
         viewModelScope.launch { lastCategoryStore.setLastSelectedId(id) }
     }
 
-    private fun save() {
+    /** [shareAfterSave] is Save & Share (ARCHITECTURE §8.1): identical write, plus a share event. */
+    private fun save(shareAfterSave: Boolean) {
         val state = _uiState.value
         if (!state.canSave) return
         val categoryId = state.selectedCategoryId ?: return
@@ -127,9 +146,14 @@ class LogViewModel @Inject constructor(
                     receiptRelativePath = state.receiptRelativePath,
                 ),
             )
-            if (result.isSuccess) {
+            result.onSuccess { saved ->
                 // The file is NOT deleted — the persisted expense owns it now.
                 receiptAttachment.clearAfterSave()
+                if (shareAfterSave) {
+                    val categoryName = state.categories.firstOrNull { it.id == categoryId }?.name.orEmpty()
+                    val text = formatExpenseShareText(saved, categoryName, locale(), zoneProvider.get())
+                    _shareEvents.send(LogUiEvent.Share(text, saved.receiptRelativePath))
+                }
             }
             _uiState.update {
                 if (result.isSuccess) {

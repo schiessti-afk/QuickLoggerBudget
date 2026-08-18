@@ -4,12 +4,18 @@ import com.quicklogger.app.domain.model.Category
 import com.quicklogger.app.domain.model.Expense
 import com.quicklogger.app.domain.model.Money
 import com.quicklogger.app.domain.model.Period
+import com.quicklogger.app.domain.usecase.BuildExpensesCsv
+import com.quicklogger.app.domain.usecase.BuildPeriodSummary
+import com.quicklogger.app.domain.usecase.ExportExpensesCsv
 import com.quicklogger.app.domain.usecase.ObserveCategories
 import com.quicklogger.app.domain.usecase.ObserveExpensesInRange
 import com.quicklogger.app.presentation.history.HistoryEvent
+import com.quicklogger.app.presentation.history.HistoryUiEvent
 import com.quicklogger.app.presentation.history.HistoryViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -17,6 +23,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -45,25 +52,39 @@ class HistoryViewModelTest {
     private fun expense(id: Long, occurredAt: Instant, categoryId: Long = food.id, minor: Long = 4500, currency: String = "USD", receipt: String? = null) =
         Expense(id, Money(minor, currency), categoryId, occurredAt, receipt, occurredAt, occurredAt)
 
+    private lateinit var csvExportStore: FakeCsvExportStore
+
     private fun viewModel(expenses: List<Expense>, categories: List<Category> = listOf(food, transport)): HistoryViewModel =
         viewModelWithRepo(expenses, categories).first
 
     private fun viewModelWithRepo(
         expenses: List<Expense>,
         categories: List<Category> = listOf(food, transport),
+        clock: Clock = Clock.fixed(now, ZoneOffset.UTC),
     ): Pair<HistoryViewModel, FakeExpenseRepository> {
         val expenseRepo = FakeExpenseRepository()
         val categoryRepo = FakeCategoryRepository(categories)
         expenses.forEach { runBlockingInsert(expenseRepo, it) }
+        csvExportStore = FakeCsvExportStore()
         val viewModel = HistoryViewModel(
             ObserveExpensesInRange(expenseRepo),
             ObserveCategories(categoryRepo),
-            Clock.fixed(now, ZoneOffset.UTC),
+            BuildPeriodSummary(),
+            ExportExpensesCsv(BuildExpensesCsv(), csvExportStore, clock),
+            clock,
             Provider { ZoneOffset.UTC },
             Provider { Locale.US },
         )
         return viewModel to expenseRepo
     }
+
+    /**
+     * Reads the next buffered event directly rather than through a long-lived
+     * background collector — by the time this is called, a fired event is already
+     * sitting in the channel's buffer, so `first()` returns without suspending.
+     */
+    private suspend inline fun <reified T : HistoryUiEvent> nextEventOrNull(viewModel: HistoryViewModel): T? =
+        withTimeoutOrNull(1) { viewModel.uiEvents.filterIsInstance<T>().first() }
 
     private fun runBlockingInsert(repo: FakeExpenseRepository, expense: Expense) =
         kotlinx.coroutines.runBlocking { repo.insert(expense) }
@@ -181,5 +202,54 @@ class HistoryViewModelTest {
             listOf(justLogged.id, existing.id),
             viewModel.uiState.value.rows.map { it.id },
         )
+    }
+
+    // --- share and CSV export (ARCHITECTURE §9.2, §9.3) ---
+
+    @Test
+    fun sharePeriodTextFiresAShareEventBuiltFromTheVisibleRows() = runTest {
+        val today = expense(1L, now, categoryId = transport.id)
+        val viewModel = viewModel(listOf(today))
+        keepUiStateAlive(viewModel)
+        advanceUntilIdle()
+
+        viewModel.onEvent(HistoryEvent.SharePeriodText)
+        advanceUntilIdle()
+
+        val share = requireNotNull(nextEventOrNull<HistoryUiEvent.ShareText>(viewModel))
+        assertTrue(share.text.contains("Transport"))
+    }
+
+    @Test
+    fun exportCsvWritesTheVisibleRowsAndFiresAShareCsvEventNamedForToday() = runTest {
+        val today = expense(1L, now)
+        val (viewModel, _) = viewModelWithRepo(listOf(today))
+        keepUiStateAlive(viewModel)
+        advanceUntilIdle()
+
+        viewModel.onEvent(HistoryEvent.ExportCsv)
+        advanceUntilIdle()
+
+        val share = requireNotNull(nextEventOrNull<HistoryUiEvent.ShareCsv>(viewModel))
+        assertEquals("quicklogger-2026-08-18.csv", share.fileName)
+        val written = csvExportStore.written.getValue(share.fileName)
+        assertTrue(written.contains("occurred_at,amount,currency,category,has_receipt"))
+        assertEquals(2, written.trim().lines().size)
+    }
+
+    @Test
+    fun exportCsvUsesTheExportDateNotThePeriodStartForWeekAndMonth() = runTest {
+        val lastWeek = expense(1L, Instant.parse("2026-08-10T10:00:00Z"))
+        val (viewModel, _) = viewModelWithRepo(listOf(lastWeek))
+        keepUiStateAlive(viewModel)
+        advanceUntilIdle()
+        viewModel.onEvent(HistoryEvent.PeriodSelected(Period.MONTH))
+        advanceUntilIdle()
+
+        viewModel.onEvent(HistoryEvent.ExportCsv)
+        advanceUntilIdle()
+
+        val share = requireNotNull(nextEventOrNull<HistoryUiEvent.ShareCsv>(viewModel))
+        assertEquals("quicklogger-2026-08-18.csv", share.fileName)
     }
 }

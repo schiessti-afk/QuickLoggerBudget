@@ -17,6 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -27,15 +29,23 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.quicklogger.app.R
 import com.quicklogger.app.presentation.components.PeriodChips
+import com.quicklogger.app.presentation.components.buildCsvShareIntent
+import com.quicklogger.app.presentation.components.buildTextShareIntent
+import com.quicklogger.app.presentation.components.launchShareChooser
 
 @Composable
 fun HistoryScreen(
@@ -45,6 +55,18 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.uiEvents.collect { event ->
+            when (event) {
+                is HistoryUiEvent.ShareText -> context.launchShareChooser(buildTextShareIntent(event.text))
+                is HistoryUiEvent.ShareCsv ->
+                    context.launchShareChooser(buildCsvShareIntent(context, event.fileName))
+            }
+        }
+    }
+
     HistoryScreenContent(
         uiState = uiState,
         onEvent = viewModel::onEvent,
@@ -63,6 +85,8 @@ internal fun HistoryScreenContent(
     onEditExpense: (Long) -> Unit,
     onManageCategories: () -> Unit,
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -76,10 +100,24 @@ internal fun HistoryScreenContent(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onManageCategories) {
+                    IconButton(onClick = { showMenu = true }) {
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
-                            contentDescription = stringResource(R.string.manage_categories),
+                            contentDescription = stringResource(R.string.history_menu),
+                        )
+                    }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.manage_categories)) },
+                            onClick = { showMenu = false; onManageCategories() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.share_period)) },
+                            onClick = { showMenu = false; onEvent(HistoryEvent.SharePeriodText) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.export_csv)) },
+                            onClick = { showMenu = false; onEvent(HistoryEvent.ExportCsv) },
                         )
                     }
                 },
