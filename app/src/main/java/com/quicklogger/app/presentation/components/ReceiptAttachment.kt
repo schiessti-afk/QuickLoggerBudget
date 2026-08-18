@@ -12,13 +12,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -29,8 +29,13 @@ import java.io.File
  * The optional receipt on the Log screen: two actions when empty, a thumbnail plus a
  * remove control once one is attached.
  *
- * Plain labelled buttons rather than icons — `material-icons-core` has no camera or
- * gallery glyph, and sprint 6 replaces this with the generated ink family anyway.
+ * Camera/gallery are generated ink-line glyphs (`ic_action_camera` /
+ * `ic_action_gallery`, DESIGN §6), not Material Symbols — `material-icons-core` has
+ * no camera/gallery glyph, and matching the pictogram/toolbar ink family reads more
+ * consistent than pulling in `material-icons-extended` for two icons. `IconButton`
+ * already gives each a 48 dp touch target (DESIGN §2/§7); the `contentDescription`
+ * keeps them "not unlabeled" for screen readers even though the visible label is
+ * gone.
  */
 @Composable
 fun ReceiptAttachment(
@@ -72,12 +77,23 @@ fun ReceiptAttachment(
                 }
             }
 
-            else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onCapture) {
-                    Text(stringResource(R.string.receipt_take_photo))
+            else -> Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onCapture) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_action_camera),
+                        contentDescription = stringResource(R.string.receipt_take_photo),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                OutlinedButton(onClick = onPick) {
-                    Text(stringResource(R.string.receipt_choose_image))
+                IconButton(onClick = onPick) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_action_gallery),
+                        contentDescription = stringResource(R.string.receipt_choose_image),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

@@ -124,8 +124,10 @@ class LogScreenTest {
     fun bothReceiptActionsShowWhenNothingIsAttached() {
         setContent(LogUiState(categories = listOf(food), selectedCategoryId = food.id))
 
-        composeRule.onNodeWithText("Take photo").assertExists()
-        composeRule.onNodeWithText("Choose image").assertExists()
+        // DESIGN §6: camera/gallery are icon-only (generated ink glyphs), labelled
+        // via contentDescription rather than visible text.
+        composeRule.onNodeWithContentDescription("Take photo").assertExists()
+        composeRule.onNodeWithContentDescription("Choose image").assertExists()
     }
 
     @Test
@@ -136,7 +138,7 @@ class LogScreenTest {
             onEvent = { events += it },
         )
 
-        composeRule.onNodeWithText("Take photo").performClick()
+        composeRule.onNodeWithContentDescription("Take photo").performClick()
 
         assertEquals(listOf(LogEvent.CaptureReceipt), events)
     }
@@ -152,7 +154,7 @@ class LogScreenTest {
             receiptFile = File("/does/not/need/to/exist.jpg"),
         )
 
-        composeRule.onNodeWithText("Take photo").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Take photo").assertDoesNotExist()
         composeRule.onNodeWithContentDescription("Remove receipt").assertExists()
     }
 

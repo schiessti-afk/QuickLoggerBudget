@@ -1,54 +1,71 @@
-# Sprint 5 tasks
+# Sprint 6 tasks
 
-- [x] Task 1: `FormatExpenseShareText`, `BuildPeriodSummary`, `BuildExpensesCsv`
-  - Acceptance: single-expense caption matches ARCHITECTURE §9.1's three-line shape exactly; period summary is title + one line per expense + one total per currency; CSV amount is always major units with two decimals, even for zero-fraction-digit currencies
-  - Verify: `FormatExpenseShareTextTest` (3), `BuildPeriodSummaryTest` (5), `BuildExpensesCsvTest` (9) — all green
-  - Files: `domain/usecase/{FormatExpenseShareText,BuildPeriodSummary,BuildExpensesCsv}.kt`
+- [x] Task 1: Launcher fold (`ic_launcher_foreground`, `ic_launcher_monochrome`)
+  - Acceptance: reads as a folded receipt (crease + tally lines + dog-eared corner) inside the adaptive-icon safe zone; monochrome variant is a single-color silhouette for themed icons
+  - Verify: `assembleDebug` green (resource compiles); visual read needs a device
+  - Files: `res/drawable/{ic_launcher_foreground,ic_launcher_monochrome}.xml`
 
-- [x] Task 2: `CsvExportStore` port; `ExportExpensesCsv` use case
-  - Acceptance: exported file is named for **today** (the export date) in every period, never the period's `start`
-  - Verify: covered by `HistoryViewModelTest`'s export tests (Task 7)
-  - Files: `domain/repository/CsvExportStore.kt`, `domain/usecase/ExportExpensesCsv.kt`
+- [x] Task 2: Top-bar glyph (`ic_toolbar_receipt`)
+  - Acceptance: same silhouette as the launcher, 24×24 viewport, single color (tintable)
+  - Verify: wired into Log's `TopAppBar` title row
+  - Files: `res/drawable/ic_toolbar_receipt.xml`, `presentation/log/LogScreen.kt`
 
-- [x] Task 3: `CsvFileStore` over `cacheDir/exports/`; DI binding
-  - Acceptance: writes UTF-8 text to `cacheDir/exports/{fileName}`, overwriting any prior file of the same name
-  - Verify: `assembleDebug` green; Hilt graph resolves
-  - Files: `data/export/CsvFileStore.kt`, `di/DataModule.kt`
+- [x] Task 3: Six category pictograms
+  - Acceptance: each is single-color, 24×24, distinct silhouette per DESIGN §8.5's description (coffee cup, bus, open carton, light bulb, tote bag, asterisk-in-square)
+  - Verify: `CategoryStyleTest` — each seeded name resolves to a distinct pictogram resource id
+  - Files: `res/drawable/ic_category_{food,transport,supplies,utilities,personal,other}.xml`
 
-- [x] Task 4: `<cache-path>` for exports; manifest test extended
-  - Acceptance: `file_paths.xml` exposes `receipts/` and `exports/` only — no external storage, no whole-`filesDir` entry
-  - Verify: `ManifestPrivacyTest.fileProviderExposesOnlyTheReceiptsAndExportsDirectories`
-  - Files: `res/xml/file_paths.xml`
+- [x] Task 4: Empty-History illustration
+  - Acceptance: folded receipt + wax seal + closed ledger, baked cream/wax/ink palette, lots of negative space, no checklist
+  - Verify: wired above the existing one-line `history_empty` string
+  - Files: `res/drawable/ic_empty_history.xml`, `presentation/history/HistoryScreen.kt`
 
-- [x] Task 5: `ShareIntents.kt`, `ExportFiles.kt`
-  - Acceptance: every `ACTION_SEND` goes through `Intent.createChooser`; no hard-coded WhatsApp package; a receipt share carries `image/jpeg` + `EXTRA_STREAM` + `EXTRA_TEXT` + `FLAG_GRANT_READ_URI_PERMISSION`, a CSV share carries `text/csv` + `EXTRA_STREAM`
-  - Verify: code review (these are thin `Intent` builders with no branching logic worth a JVM test; they use Android types end to end)
-  - Files: `presentation/components/{ShareIntents,ExportFiles}.kt`
+- [x] Task 5: Camera/gallery action glyphs
+  - Acceptance: single-color, same stroke weight as the pictograms; documented deviation from "Material Symbols" (no `material-icons-extended` dependency added)
+  - Verify: wired into `ReceiptAttachment`; `LogScreenTest`'s content-description assertions still pass compilation
+  - Files: `res/drawable/ic_action_{camera,gallery}.xml`, `presentation/components/ReceiptAttachment.kt`
 
-- [x] Task 6: Log — `LogUiEvent`, `LogEvent.SaveAndShare`, `LogViewModel`, `LogScreen`
-  - Acceptance: Save & Share persists and resets the form identically to Save, then fires exactly one `Share` event carrying the just-saved expense's caption and receipt path (`null` when there was none); plain Save never fires a `Share` event
-  - Verify: `LogViewModelTest` — 4 new tests (`saveAndShareWritesTheExpenseAndFiresAShareEventWithNoReceipt`, `saveAndShareIncludesTheReceiptWhenOneIsAttached`, `plainSaveDoesNotFireAShareEvent`, `saveAndShareResetsTheFormJustLikePlainSave`) — all green
-  - Files: `presentation/log/{LogUiEvent,LogEvent,LogViewModel,LogScreen}.kt`
+- [x] Task 6: `CategoryStyle.kt`
+  - Acceptance: each of the six seeded names resolves to a distinct accent + pictogram; any other name (including every custom category) resolves to Other's — never a lookup miss
+  - Verify: `CategoryStyleTest` — 5 tests green
+  - Files: `presentation/theme/CategoryStyle.kt`
 
-- [x] Task 7: History — `HistoryUiEvent`, `HistoryEvent.{SharePeriodText,ExportCsv}`, `HistoryViewModel`, `HistoryScreen`
-  - Acceptance: both actions build from the currently visible (filtered) rows, not a fresh unfiltered query; CSV export is named for today regardless of the selected period
-  - Verify: `HistoryViewModelTest` — 3 new tests (`sharePeriodTextFiresAShareEventBuiltFromTheVisibleRows`, `exportCsvWritesTheVisibleRowsAndFiresAShareCsvEventNamedForToday`, `exportCsvUsesTheExportDateNotThePeriodStartForWeekAndMonth`) — all green
-  - Files: `presentation/history/{HistoryUiEvent,HistoryEvent,HistoryViewModel,HistoryScreen}.kt`
+- [x] Task 7: `CategoryChips` — pictogram + accent + selected-state contrast
+  - Acceptance: unselected chip shows an accent-tinted outline and pictogram on a cream fill; selected chip fills to ~24% accent with an accent border; the label is `onSurface` ink in both states, never white-on-accent
+  - Verify: existing `LogScreenTest` chip-selection assertions (label text, click behavior) still hold — pictogram is decorative (`contentDescription = null`)
+  - Files: `presentation/components/CategoryChips.kt`
 
-## Checkpoint: Sprint 5 done
+- [x] Task 8: Log top bar + Save & Share button style
+  - Acceptance: 24 dp glyph precedes the "QuickLogger" title; Save stays `Button`, Save & Share becomes `FilledTonalButton` per DESIGN §6's component table
+  - Verify: `assembleDebug`; no new tap added to the primary path
+  - Files: `presentation/log/LogScreen.kt`
+
+- [x] Task 9: `ReceiptAttachment` icon buttons
+  - Acceptance: camera/gallery are `IconButton`s (48 dp touch target by default) with `contentDescription`, not visible-text buttons
+  - Verify: `LogScreenTest` — 3 assertions moved from `onNodeWithText` to `onNodeWithContentDescription`, same accessible names
+  - Files: `presentation/components/ReceiptAttachment.kt`, `androidTest/.../LogScreenTest.kt`
+
+- [x] Task 10: History row pictogram + empty-state illustration
+  - Acceptance: each row shows a 16 dp accent-tinted pictogram before "category · date"; empty state shows the illustration above the unchanged one-sentence copy
+  - Verify: `assembleDebug`; existing `HistoryScreenTest` text assertion (`"No expenses in this period."`) still holds
+  - Files: `presentation/history/HistoryScreen.kt`
+
+- [x] Task 11: `AmountField` tabular figures
+  - Acceptance: `displaySmall` text style carries `fontFeatureSettings = "tnum"`
+  - Verify: `assembleDebug` (no JVM-testable behavior — this is a text-rendering hint, not logic)
+  - Files: `presentation/components/AmountField.kt`
+
+## Checkpoint: Sprint 6 done
 - [x] `.\gradlew.bat lint`
-- [x] `.\gradlew.bat test` — 164 tests, 0 failures
+- [x] `.\gradlew.bat test` — 169 tests, 0 failures
 - [x] `.\gradlew.bat assembleDebug`
-- [x] Domain has no `android.*` / Room / Compose / `Uri` imports
-- [x] `LogViewModel` / `HistoryViewModel` still hold no `Context`, `Uri`, or `AndroidViewModel`
-- [x] Merged manifest still has no `INTERNET`; no `<queries>` block was added
-- [ ] `.\gradlew.bat connectedDebugAndroidTest` (no new Room surface this sprint — nothing new to run here)
-- [ ] Human review before the sprint is treated as closed
-
-## A test-infrastructure issue found during this sprint (not a production bug)
-See `tasks/plan.md`'s "A test-infrastructure issue found during this sprint" section: `backgroundScope.launch { channelBackedFlow.collect { ... } }` never ran its coroutine body under `StandardTestDispatcher` in this project, so the new share/CSV tests read events with a direct foreground `first()` instead of a background collector. `HistoryViewModelTest.keepUiStateAlive`'s pre-existing `StateFlow` usage was left untouched since it already works.
+- [x] `.\gradlew.bat compileDebugAndroidTestKotlin` — androidTest sources still compile (no execution; no device)
+- [x] Dynamic color still off; no dark `ColorScheme`
+- [x] No generated asset lookup can fail — `categoryStyleFor` always resolves
+- [ ] `.\gradlew.bat connectedDebugAndroidTest` (needs a device/emulator)
+- [ ] Human review before the sprint is treated as closed — "reads as one ink family at device size" is a visual call this session cannot make
 
 ## Follow-ups noticed, not actioned
-- History's share/export actions live inside the existing overflow `DropdownMenu` rather than dedicated top-bar icons, to avoid adding `material-icons-extended` for a single "download" glyph. Revisit in sprint 6 if DESIGN wants dedicated iconography.
-- The root cause of the `backgroundScope` + `Channel.receiveAsFlow()` test-collection issue (above) was not fully identified. It did not block this sprint since the direct-`first()` pattern is reliable, but it may be worth a focused investigation before it's hit again in a context where that workaround doesn't fit.
-- CSV rows are written in whatever order `expenses` arrives in (History's newest-first order); nothing in ARCHITECTURE asks for chronological CSV rows, so this was not changed.
+- `material-icons-extended` was deliberately not added; if a future sprint wants true Material Symbols for camera/gallery instead of the hand-drawn glyphs, that's a one-file swap in `ReceiptAttachment.kt`.
+- `categoryStyleFor` matches by `name`, not by a stable id — a custom category renamed to collide with a seeded name (e.g. "Food") would silently take that seed's style. Not asked for; flagged for whoever adds a color/icon column later.
+- `ManageCategoriesDialog`'s category rows (History's overflow → manage) do not show pictograms — DESIGN doesn't ask for it there (only chips and History rows are specified), left as plain rows.

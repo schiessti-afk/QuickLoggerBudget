@@ -297,4 +297,9 @@ This design is doing its job when:
 ### Still open
 
 - **Amount typeface.** Assumed platform M3. Say if you want a bundled tabular font in `res/font`.
-- **Vector trace.** Pictograms and the toolbar glyph still need XML `VectorDrawable`s when `:app` is created; PNGs are not the runtime format.
+
+### Sprint 6 implementation notes
+
+- **Vector trace (resolved).** The launcher fold, toolbar glyph, six pictograms, and the empty-History illustration are hand-drawn `VectorDrawable`s in `res/drawable/` (`ic_launcher_foreground`, `ic_launcher_monochrome`, `ic_toolbar_receipt`, `ic_category_*`, `ic_empty_history`) rather than a pixel trace of the `assets/` PNGs — same silhouettes and line weight, redrawn as clean path data.
+- **Camera/gallery deviation from §6's "Material Symbols."** `material-icons-core` has no camera or gallery glyph; `material-icons-extended` would add a large dependency for two icons. `ic_action_camera` / `ic_action_gallery` are hand-drawn in the same ink-line family instead — arguably a closer match to "one ink family" (§8) than mixing in a filled Material Symbol would have been. Delete, History, and the top-bar list action stay Material as specified.
+- **Category → style mapping.** `Category` has no color/icon column (out of this sprint's scope), so `presentation/theme/CategoryStyle.kt` maps by the fixed seed name (`Food`, `Transport`, …) and falls back to Other's accent/pictogram for anything else, including every custom category — matching §4.4 by construction.

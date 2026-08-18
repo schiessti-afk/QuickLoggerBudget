@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Same rationale as ic_action_camera.xml: hand-drawn to match the ink family
+     rather than pulling in material-icons-extended for one glyph. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M3,4 L21,4 L21,19 L3,19 Z
+                           M6.2,9 A1.8,1.8 0 1,0 9.8,9 A1.8,1.8 0 1,0 6.2,9 Z
+                           M3,17 L9,11 L13,15 L17,10 L21,17"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>

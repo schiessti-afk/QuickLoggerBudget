@@ -35,7 +35,9 @@ fun AmountField(
         value = fieldValue,
         onValueChange = { onRawInputChange(it.text) },
         modifier = modifier.fillMaxWidth(),
-        textStyle = MaterialTheme.typography.displaySmall,
+        // DESIGN §5.3: tabular/lining figures so the value doesn't jump while
+        // typing, on platform faces that support the "tnum" OpenType feature.
+        textStyle = MaterialTheme.typography.displaySmall.copy(fontFeatureSettings = "tnum"),
         label = { Text(label) },
         singleLine = true,
         isError = isError,

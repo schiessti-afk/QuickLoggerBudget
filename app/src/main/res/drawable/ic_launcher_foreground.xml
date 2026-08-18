@@ -1,13 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    DESIGN §8.1: abstract folded receipt (one dog-eared rectangle, a single crease,
+    a few tally lines). Kept inside the ~66 dp adaptive-icon safe zone (centered at
+    54,54; corners sit ~30 dp out, under the 33 dp safe radius).
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#9A4A32"
-        android:pathData="M36,30h36c1.1,0 2,0.9 2,2v44c0,1.1 -0.9,2 -2,2H36c-1.1,0 -2,-0.9 -2,-2V32c0,-1.1 0.9,-2 2,-2z" />
+        android:pathData="M36,30 L60,30 L72,42 L72,78 L36,78 Z"
+        android:strokeColor="#9A4A32"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
     <path
-        android:fillColor="#F6F1E8"
-        android:pathData="M42,42h24v3H42zM42,50h24v3H42zM42,58h16v3H42z" />
+        android:pathData="M50,30 L50,78"
+        android:strokeColor="#9A4A32"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M58,46 L68,46 M58,54 L66,54 M58,62 L64,62"
+        android:strokeColor="#2A241F"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
 </vector>

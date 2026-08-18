@@ -217,6 +217,8 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## Sprint 6 — Stationery identity
 
+**Status:** Implemented. `lint`, `test`, and `assembleDebug` are green (169 JVM tests). The criteria below that need a device or emulator — and the human review in the standing bar — are still open. This is a visual sprint; "reads as one ink family" is ultimately a human call.
+
 **Outcome:** The running app matches DESIGN: one ink-on-paper family from launcher to empty History. Beauty does not add taps.
 
 **In**
@@ -233,12 +235,12 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 **Exit criteria**
 
-- [ ] Log still matches ARCHITECTURE §8.1 (focus, radio chips, optional receipt, two save actions). No new tap on the primary path.
-- [ ] Launcher, top-bar glyph, empty state, and six pictograms read as one ink family at device size.
-- [ ] Each seeded chip shows its pictogram and accent; selected state stays readable (ink label, not white on ochre).
-- [ ] Empty History is one sentence plus the illustration — not a marketing checklist.
-- [ ] Dynamic color is off. There is no dark `ColorScheme`.
-- [ ] No generated asset is required to complete a save.
+- [x] Log still matches ARCHITECTURE §8.1 (focus, radio chips, optional receipt, two save actions). No new tap on the primary path. *(Chips gained a leading pictogram and the receipt actions became icon buttons; no new screen, dialog, or tap was added — `LogScreenTest`'s existing flows still hold, updated only where a label moved from visible text to `contentDescription`.)*
+- [ ] Launcher, top-bar glyph, empty state, and six pictograms read as one ink family at device size. *(Hand-drawn `VectorDrawable`s at a consistent ~2 px/24 dp stroke weight, all sourced from the same `assets/` masters — the actual "reads as one family" call needs a device/human, same as every visual criterion in this sprint.)*
+- [x] Each seeded chip shows its pictogram and accent; selected state stays readable (ink label, not white on ochre). *(`CategoryChips` now sets `selectedLabelColor` to `onSurface` explicitly — the fill tints, the label never does.)*
+- [x] Empty History is one sentence plus the illustration — not a marketing checklist. *(`ic_empty_history` above the existing single-line `history_empty` string; no copy changed.)*
+- [x] Dynamic color is off. There is no dark `ColorScheme`. *(Unchanged from sprint 1 — `BrandColorsTest` still covers this.)*
+- [x] No generated asset is required to complete a save. *(`categoryStyleFor` always resolves — unknown/custom names fall back to Other rather than failing a lookup; covered by `CategoryStyleTest`.)*
 
 ---
 

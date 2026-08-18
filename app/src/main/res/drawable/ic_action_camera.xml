@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    DESIGN §6 asks for Material Symbols on chrome, but `material-icons-core` has no
+    camera/gallery glyph and pulling in `material-icons-extended` for two icons would
+    add a large dependency for a handful of pixels. A hand-drawn glyph in the same
+    ink-line family as the category pictograms and toolbar mark reads as *more*
+    consistent with DESIGN §8's "one ink family" goal, not less, so that is what this
+    is. Single-color; tinted at runtime like any other toolbar/action icon.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M3,9 L21,9 L21,19 L3,19 Z
+                           M9,9 L10,6.5 L15,6.5 L16,9
+                           M8.8,14 A3.2,3.2 0 1,0 15.2,14 A3.2,3.2 0 1,0 8.8,14 Z"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>

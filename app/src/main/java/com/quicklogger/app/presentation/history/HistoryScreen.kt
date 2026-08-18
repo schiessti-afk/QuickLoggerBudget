@@ -1,5 +1,6 @@
 package com.quicklogger.app.presentation.history
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -37,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,6 +50,7 @@ import com.quicklogger.app.presentation.components.PeriodChips
 import com.quicklogger.app.presentation.components.buildCsvShareIntent
 import com.quicklogger.app.presentation.components.buildTextShareIntent
 import com.quicklogger.app.presentation.components.launchShareChooser
+import com.quicklogger.app.presentation.theme.categoryStyleFor
 
 @Composable
 fun HistoryScreen(
@@ -148,12 +153,22 @@ internal fun HistoryScreenContent(
             }
 
             if (uiState.isEmpty) {
+                // DESIGN §4.2/§8.3: one sentence plus the illustration, not a
+                // marketing checklist. The illustration already carries its own
+                // cream/ink palette, so it needs no tint.
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(R.string.history_empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_empty_history),
+                            contentDescription = null,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.history_empty),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             } else {
                 LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
@@ -179,11 +194,20 @@ private fun HistoryRow(row: HistoryRowUiModel, onClick: () -> Unit) {
     ) {
         Column {
             Text(row.amountFormatted, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = "${row.categoryName} · ${row.occurredAtFormatted}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(categoryStyleFor(row.categoryName).pictogram),
+                    contentDescription = null, // decorative; the category name follows in text
+                    modifier = Modifier.size(16.dp),
+                    tint = categoryStyleFor(row.categoryName).accent,
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = "${row.categoryName} · ${row.occurredAtFormatted}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         if (row.hasReceipt) {
             Icon(
