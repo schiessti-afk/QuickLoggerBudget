@@ -243,7 +243,7 @@ Status is never carried by color alone (WCAG 2.2 §1.4.1): over budget also chan
 | Period | `FilterChip` | Day / week / month; brand seed, not category color |
 | Top bar | `TopAppBar` | Wordmark/glyph 24 dp + title; Dashboard action on Log, back arrow on Dashboard |
 | Remaining line (Log) | `Text`, `bodySmall` | One line, ellipsized; §5.4 color; not tappable; absent when no target |
-| Budget meter | Compose `Canvas` arc | Rounded caps, ~12 dp stroke, track `outline`; 48 dp hit box; opens the target dialog |
+| Budget meter | Compose `Canvas` arc | Rounded caps, ~12 dp stroke, track `outline`; 48 dp hit box; opens the target dialog. Unset prompt sits below the ring so the circular clip cannot truncate it. |
 | Category bar | Compose `Canvas` row | 8 dp rounded track, accent fill, 1 dp ink target tick; whole row is the 48 dp hit box |
 | Target dialog | `AlertDialog` | Title = category name or "Monthly budget"; reuses the Log amount field; empty = clear |
 

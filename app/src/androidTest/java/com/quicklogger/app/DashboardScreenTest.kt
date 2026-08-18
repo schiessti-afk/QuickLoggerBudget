@@ -5,6 +5,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.quicklogger.app.domain.model.Period
+import com.quicklogger.app.presentation.dashboard.BudgetMeterUiModel
+import com.quicklogger.app.presentation.dashboard.BudgetOverviewUiModel
 import com.quicklogger.app.presentation.dashboard.DashboardEvent
 import com.quicklogger.app.presentation.dashboard.DashboardRowUiModel
 import com.quicklogger.app.presentation.dashboard.DashboardScreenContent
@@ -100,5 +102,26 @@ class DashboardScreenTest {
         // The screen is then byte-for-byte the old History (DESIGN §4.2): no meter,
         // no bar, just the period chips and the (empty) list.
         composeRule.onNodeWithText("Monthly budget").assertDoesNotExist()
+    }
+
+    @Test
+    fun unsetMeterShowsTheFullSetPrompt() {
+        setContent(
+            DashboardUiState(
+                overview = BudgetOverviewUiModel(
+                    meter = BudgetMeterUiModel(
+                        hasTarget = false,
+                        fillRatio = 0f,
+                        spentFormatted = "$12.00",
+                        remainingFormatted = null,
+                        targetFormatted = null,
+                        isOver = false,
+                    ),
+                ),
+            ),
+        )
+
+        composeRule.onNodeWithText("$12.00 spent").assertExists()
+        composeRule.onNodeWithText("Tap to set a monthly budget").assertExists()
     }
 }

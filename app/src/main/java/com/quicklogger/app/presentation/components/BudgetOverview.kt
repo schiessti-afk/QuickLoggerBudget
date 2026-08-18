@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.quicklogger.app.R
@@ -39,6 +40,8 @@ import com.quicklogger.app.presentation.theme.categoryStyleFor
  * target ever get created: the meter is shown (empty ring, spend total, a "set a
  * budget" prompt) as soon as there's any spend or category target to justify drawing
  * the overview at all, the same "spend-or-target" rule a category bar already uses.
+ * The unset prompt sits *below* the ring: the 176 dp circle clips to `CircleShape`,
+ * and that clip would truncate "Tap to set a monthly budget".
  */
 @Composable
 fun BudgetMeter(
@@ -53,65 +56,80 @@ fun BudgetMeter(
         meter.isOver -> stringResource(R.string.budget_meter_over_by, meter.remainingFormatted!!)
         else -> stringResource(R.string.budget_meter_remaining_left, meter.remainingFormatted!!)
     }
-    val subLabel = if (meter.hasTarget) {
-        stringResource(R.string.budget_meter_of_target, meter.targetFormatted!!)
-    } else {
-        stringResource(R.string.budget_meter_set_prompt)
-    }
+    val clickLabel = stringResource(R.string.budget_meter_content_description, centerLabel)
 
     Column(
         modifier = modifier
-            .size(176.dp)
-            .clip(CircleShape)
+            .fillMaxWidth()
             .clickable(
-                onClickLabel = stringResource(R.string.budget_meter_content_description, centerLabel),
+                onClickLabel = clickLabel,
                 role = Role.Button,
                 onClick = onClick,
-            )
-            .padding(12.dp),
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
     ) {
-        Canvas(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            val strokeWidth = 12.dp.toPx()
-            val diameter = minOf(size.width, size.height) - strokeWidth
-            val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
-            val arcSize = androidx.compose.ui.geometry.Size(diameter, diameter)
-            drawArc(
-                color = trackColor,
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-            )
-            if (meter.fillRatio > 0f) {
+        Column(
+            modifier = Modifier
+                .size(176.dp)
+                .clip(CircleShape)
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Canvas(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                val strokeWidth = 12.dp.toPx()
+                val diameter = minOf(size.width, size.height) - strokeWidth
+                val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+                val arcSize = androidx.compose.ui.geometry.Size(diameter, diameter)
                 drawArc(
-                    color = statusColor,
+                    color = trackColor,
                     startAngle = -90f,
-                    sweepAngle = 360f * meter.fillRatio,
+                    sweepAngle = 360f,
                     useCenter = false,
                     topLeft = topLeft,
                     size = arcSize,
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
                 )
+                if (meter.fillRatio > 0f) {
+                    drawArc(
+                        color = statusColor,
+                        startAngle = -90f,
+                        sweepAngle = 360f * meter.fillRatio,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                    )
+                }
+            }
+            Text(
+                text = centerLabel,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (meter.hasTarget && meter.isOver) statusColor else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (meter.hasTarget) {
+                Text(
+                    text = stringResource(R.string.budget_meter_of_target, meter.targetFormatted!!),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
-        Text(
-            text = centerLabel,
-            style = MaterialTheme.typography.titleMedium,
-            color = if (meter.hasTarget && meter.isOver) statusColor else MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = subLabel,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (!meter.hasTarget) {
+            Text(
+                text = stringResource(R.string.budget_meter_set_prompt),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, start = 16.dp, end = 16.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
