@@ -8,6 +8,7 @@ fun QuickLoggerTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = QuickLoggerColorScheme,
         typography = QuickLoggerTypography,
+        shapes = QuickLoggerShapes,
         content = content,
     )
 }

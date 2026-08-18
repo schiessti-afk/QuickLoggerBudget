@@ -50,6 +50,7 @@ import com.quicklogger.app.presentation.components.ReceiptAttachment
 import com.quicklogger.app.presentation.components.receiptFile
 import com.quicklogger.app.presentation.components.receiptUri
 import com.quicklogger.app.presentation.receipt.ReceiptAttachmentUiEvent
+import com.quicklogger.app.presentation.theme.QuickLoggerButtonShape
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -177,7 +178,10 @@ internal fun ExpenseEditScreenContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = { showDatePicker = true }) {
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    shape = QuickLoggerButtonShape,
+                ) {
                     Text(uiState.occurredAtFormatted)
                 }
 
@@ -198,6 +202,7 @@ internal fun ExpenseEditScreenContent(
                     onClick = { onEvent(ExpenseEditEvent.Save) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = uiState.canSave,
+                    shape = QuickLoggerButtonShape,
                 ) {
                     Text(stringResource(R.string.save))
                 }

@@ -2,21 +2,24 @@ package com.quicklogger.app.presentation.components
 
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -30,12 +33,9 @@ import java.io.File
  * remove control once one is attached.
  *
  * Camera/gallery are generated ink-line glyphs (`ic_action_camera` /
- * `ic_action_gallery`, DESIGN §6), not Material Symbols — `material-icons-core` has
- * no camera/gallery glyph, and matching the pictogram/toolbar ink family reads more
- * consistent than pulling in `material-icons-extended` for two icons. `IconButton`
- * already gives each a 48 dp touch target (DESIGN §2/§7); the `contentDescription`
- * keeps them "not unlabeled" for screen readers even though the visible label is
- * gone.
+ * `ic_action_gallery`, DESIGN §6) inside 56 dp filled tiles (`surfaceContainer`,
+ * `shapes.medium`). The `contentDescription` on each icon keeps them "not unlabeled"
+ * for screen readers (DESIGN §7).
  */
 @Composable
 fun ReceiptAttachment(
@@ -62,7 +62,7 @@ fun ReceiptAttachment(
                     contentDescription = stringResource(R.string.receipt_attached),
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(4.dp)),
+                        .clip(MaterialTheme.shapes.small),
                     contentScale = ContentScale.Crop,
                 )
                 Text(
@@ -81,20 +81,16 @@ fun ReceiptAttachment(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onCapture) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_camera),
-                        contentDescription = stringResource(R.string.receipt_take_photo),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = onPick) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_gallery),
-                        contentDescription = stringResource(R.string.receipt_choose_image),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                ReceiptActionTile(
+                    onClick = onCapture,
+                    painter = painterResource(R.drawable.ic_action_camera),
+                    contentDescription = stringResource(R.string.receipt_take_photo),
+                )
+                ReceiptActionTile(
+                    onClick = onPick,
+                    painter = painterResource(R.drawable.ic_action_gallery),
+                    contentDescription = stringResource(R.string.receipt_choose_image),
+                )
             }
         }
 
@@ -103,6 +99,28 @@ fun ReceiptAttachment(
                 text = it,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReceiptActionTile(
+    onClick: () -> Unit,
+    painter: Painter,
+    contentDescription: String,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(56.dp),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                painter = painter,
+                contentDescription = contentDescription,
             )
         }
     }

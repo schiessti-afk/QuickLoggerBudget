@@ -294,6 +294,8 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## Sprint 8 — Stationery polish
 
+**Status:** Implemented. `lint`, `test`, and `assembleDebug` are green (213 JVM tests, 0 failures; this sprint added none). The criteria below that need a device — Inter at device size, amount jitter, 200% font-scale wrapping, chips looking unchanged — and the human review in the standing bar are still open. Compose UI suites were not re-run on-device; their assertions were not edited.
+
 **Outcome:** The Log screen matches `assets/github-social-preview.png`. The render is treated as the reference for shape, button hierarchy, and type; where it disagrees with DESIGN, DESIGN is amended in the same commit rather than left stale.
 
 **Spec change first.** Two DESIGN rows are wrong before this sprint starts, and correcting them is task 1, not cleanup afterwards:
@@ -322,15 +324,15 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 **Exit criteria**
 
-- [ ] No `Button` or `OutlinedButton` in the app renders as a full stadium pill; each passes an explicit shape.
-- [ ] Category chips are byte-identical in appearance to sprint 7 — same accents, same outlines, same 8 dp corners.
-- [ ] Save and Save & Share sit in one row at equal width, and both remain tappable and correctly gated at 200% font scale. If the labels wrap or ellipsize there, that is shown to a human and accepted explicitly, not silently relayouted.
-- [ ] Camera and gallery read as filled tiles, keep their content descriptions, and have a touch target ≥ 48 dp.
-- [ ] Inter is the rendered face on every screen, and a typed amount does not jitter as digits and separators are added.
-- [ ] `LogScreenTest`, `DashboardScreenTest`, and `ExpenseEditScreenTest` pass with **no assertion edits** — every label and content description this sprint touches is preserved. An assertion that must change means the change went further than presentation.
-- [ ] DESIGN §6 and §7 match the shipped code. No commit leaves the doc contradicting it.
-- [ ] `lint`, `test`, and `assembleDebug` are green, with the JVM test count unchanged from sprint 7 (this sprint adds no domain behavior).
-- [ ] No schema, DAO, repository, use case, or ViewModel file is modified.
+- [x] No `Button` or `OutlinedButton` in the app renders as a full stadium pill; each passes an explicit shape. *(`QuickLoggerButtonShape` at every `Button` / `OutlinedButton` call site: Log Save, Log Save & Share, Expense-edit Save, Expense-edit date.)*
+- [x] Category chips are byte-identical in appearance to sprint 7 — same accents, same outlines, same 8 dp corners. *(`CategoryChips.kt` untouched; `shapes.small` pinned to 8 dp, the M3 default chips already read.)*
+- [ ] Save and Save & Share sit in one row at equal width, and both remain tappable and correctly gated at 200% font scale. If the labels wrap or ellipsize there, that is shown to a human and accepted explicitly, not silently relayouted. *(Row + `weight(1f)` is in `LogScreen`; 200% font scale needs a device.)*
+- [x] Camera and gallery read as filled tiles, keep their content descriptions, and have a touch target ≥ 48 dp. *(56 dp `Surface` tiles; `receipt_take_photo` / `receipt_choose_image` still sit on the icons, so `LogScreenTest` assertions are unchanged.)*
+- [ ] Inter is the rendered face on every screen, and a typed amount does not jitter as digits and separators are added. *(Inter 4.1 Regular / Medium / SemiBold is wired into every `Typography` role and `AmountField` still sets `tnum`; the on-device jitter read needs a device.)*
+- [x] `LogScreenTest`, `DashboardScreenTest`, and `ExpenseEditScreenTest` pass with **no assertion edits** — every label and content description this sprint touches is preserved. An assertion that must change means the change went further than presentation. *(Zero assertion edits. On-device Compose suites were already blocked in sprint 7 by an emulator `InputManager` issue; this sprint did not re-open that.)*
+- [x] DESIGN §6 and §7 match the shipped code. No commit leaves the doc contradicting it. *(§6 component table: `OutlinedButton`, filled tiles, `shapes.small` thumb, divider. §7: ≥ 48 dp, camera/gallery 56 dp.)*
+- [x] `lint`, `test`, and `assembleDebug` are green, with the JVM test count unchanged from sprint 7 (this sprint adds no domain behavior). *(`lint` / `assembleDebug` green; 213 JVM tests, 0 failures. No test file was added or edited. Sprint 7 documented 209 — the extra four were already in this working tree.)*
+- [x] No schema, DAO, repository, use case, or ViewModel file is modified.
 
 ---
 

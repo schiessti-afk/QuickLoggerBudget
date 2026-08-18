@@ -1,68 +1,46 @@
-# Implementation Plan: Sprint 7 — Targets and dashboard
+# Implementation Plan: Sprint 8 — Stationery polish
 
 ## Overview
 
-The user can set a monthly ceiling — one overall, one per category — see what it leaves while typing on Log, and open a dashboard that shows the month at a glance above the existing expense list. Setting nothing changes nothing: no meter, no line, no prompt.
-
-## The one structural decision worth calling out
-
-Budgets were explicitly out of scope in IDEA §6, ARCHITECTURE §2.3, and Sprint.md's "not a sprint" list. That reversal is task 1 of this sprint, landed as a doc-only commit before any Kotlin, so no commit in the history ever contradicts the spec it's implementing. The doc edits also carry the one visual rule this sprint bends: DESIGN's blanket "never color amounts green/red" now has a scoped exception for budget surfaces (§5.4) — the amount itself still never changes color, only meters/bars/the remaining line do.
+Make the Log screen match `assets/github-social-preview.png` as the shape / button-hierarchy / type reference, without adding taps, routes, or domain behavior. Two DESIGN rows are wrong before any Kotlin lands; those amendments are task 1. The rest is presentation-only: a theme `Shapes` scale, an explicit button-shape override (M3 buttons ignore the theme scale), filled receipt tiles, a side-by-side Save row, a divider, and bundled Inter.
 
 ## Architecture Decisions
 
-- **Room v1 → v2, one migration, approved once.** ARCHITECTURE §15 gates schema changes after v1 behind "ask first"; this sprint is that one approval (§17 decision 21), and it's recorded as not extending to a v3. `budget_targets` has an `ON DELETE CASCADE` FK to `categories` — deliberately the opposite of `expenses`' `RESTRICT` — because a target isn't data worth preserving once its category is gone.
-- **The overall target's uniqueness isn't the unique index's job.** SQLite indexes treat `NULL` as distinct from every other `NULL`, so a `UNIQUE(categoryId)` index can't stop two overall (`categoryId IS NULL`) rows on its own. `RoomBudgetTargetRepository.upsertOverall/upsertForCategory` do get-then-insert-or-update inside `withTransaction`, mirroring `RoomCategoryRepository`'s existing pattern for multi-step writes — the DAO stays plain CRUD.
-- **Currency exclusion lives in exactly one place.** `BudgetProgress.of`/`remainingIncludingPending` are the only code that decides whether an expense counts toward a target; every caller (Log's live line, the dashboard meter, the dashboard bars) goes through them, the same discipline `ExpenseTotals` already enforces for period totals.
-- **The remaining line is live against the buffer, not the pre-entry balance.** `LogViewModel` tracks `budgetTargets` / `expensesThisMonth` privately (not in `LogUiState`) and recomputes both halves on every amount keystroke, category change, and target/expense update — never blocking Save, only informing it.
-- **No chart library.** The meter is a hand-drawn Compose `Canvas` arc; bars are hand-drawn rounded rects with a tick line. DESIGN §6 rules out a charting dependency for two shapes — it would import its own type scale and animation curves into a file whose whole point is one ink family.
-- **Bar fill is the category's own accent, not the status color.** Only the segment past the target tick turns error-red. If the whole bar changed to status color, every bar in a good month would be the same green and the kit would stop scanning as a set (DESIGN §4.2).
-- **Ledger green is a `BrandColors` constant, not a `ColorScheme` role.** `budgetStatusColor(isOver)` is the only function that picks between it and the theme's own `error`; it is never mapped to `tertiary` and there is still no dark `ColorScheme`.
-- **`history` → `dashboard` is a rename, not a rewrite.** The list, period chips, share text, and CSV export are untouched — same use cases, same tests (renamed, not rewritten in substance) — with the budget overview inserted above them and nothing removed.
+- **Docs first.** DESIGN §6 currently maps Save & Share to `FilledTonalButton` and §5.3 / §3 still say platform type. Those reversals land before Kotlin so no commit (and no working tree, once this sprint is committed) contradicts the spec.
+- **`small = 8.dp` is a pin, not a restyle.** FilterChip reads `shapes.small` (`CornerSmall`). The M3 default is already 8 dp ([Material 3 in Compose](https://developer.android.com/develop/ui/compose/designsystems/material3)); pinning it keeps category chips byte-identical. `CategoryChips.kt` is not touched.
+- **Buttons need a call-site `shape =`.** `ButtonDefaults.shape` resolves `CornerFull` → a hard-coded `CircleShape` that never reads `MaterialTheme.shapes` ([Shapes](https://kotlinlang.org/api/compose-multiplatform/material3/androidx.compose.material3/-shapes/-shapes.html): "by default, buttons use the shape style full"). The shared `QuickLoggerButtonShape` (`RoundedCornerShape(12.dp)`, matching `medium`) is passed at every `Button` / `OutlinedButton` site. `TextButton` / `IconButton` are out of scope.
+- **Inter is bundled, not downloaded.** OFL Regular / Medium / SemiBold from the official Inter 4.1 release, under `res/font/`. M3 `Typography` has no `defaultFontFamily` ([Material 3 in Compose](https://developer.android.com/develop/ui/compose/designsystems/material3)); each `TextStyle` gets `fontFamily = Inter`.
+- **No new tests.** Sprint 8 adds no domain behavior. Existing Compose assertions stay byte-identical; the JVM count stays 209.
 
 ## Task List
 
 ### Phase 0: Spec change
-- [x] Task 1: IDEA / ARCHITECTURE / DESIGN / Sprint.md updated and committed before any Kotlin
+- [x] Task 1: DESIGN §3 / §5.3 / §6 / §7 / §10 match the sprint 8 In list
 
-### Phase 1: Domain
-- [x] Task 2: `BudgetTarget`, `BudgetProgress` (`of`, `remainingIncludingPending`), `BudgetTargetRepository` interface
-- [x] Task 3: `ObserveBudgetTargets`, `SetBudgetTarget`, `ClearBudgetTarget`, `BudgetError`
+### Phase 1: Theme
+- [x] Task 2: `Shape.kt` (`QuickLoggerShapes` + `QuickLoggerButtonShape`) wired through `Theme.kt`
+- [x] Task 3: Inter in `res/font/` + `QuickLoggerTypography`
 
-### Checkpoint: Domain
-- [x] `BudgetProgressTest` (11), `BudgetTargetUseCasesTest` (11) — all green on the JVM
+### Checkpoint: Theme
+- [x] `assembleDebug` succeeds; no domain/data files touched
 
-### Phase 2: Data
-- [x] Task 4: `BudgetTargetEntity` (nullable `categoryId`, `CASCADE` FK, unique index), `BudgetTargetDao`, database version 2
-- [x] Task 5: `Migration(1, 2)`, `2.json` committed, `RoomBudgetTargetRepository`, DI wiring
-
-### Checkpoint: Data
-- [x] `QuickLoggerDatabaseTest` DAO/cascade tests, `DatabaseMigrationTest` against committed `1.json` — both green on-device
-
-### Phase 3: Log
-- [x] Task 6: `LogViewModel` tracks targets + this month's expenses; `LogUiState.categoryBudgetLine` / `monthBudgetLine`; `LogScreen` renders one line, error-colored only when over
-
-### Checkpoint: Log
-- [x] `LogViewModelTest` remaining-line tests (8) — no line without a target, live against the buffer, over-target wording, foreign-currency exclusion
-
-### Phase 4: Dashboard
-- [x] Task 7: `presentation/history/` → `presentation/dashboard/`; `Routes.HISTORY` → `Routes.DASHBOARD`
-- [x] Task 8: `BudgetOverview.kt` (`BudgetMeter`, `BudgetBarRow` — Canvas), `BudgetTargetDialog.kt`
-- [x] Task 9: `DashboardViewModel` — overview always current month regardless of the period chips; target dialog state machine
+### Phase 2: Log + remaining buttons
+- [x] Task 4: Log row, `OutlinedButton`, divider, receipt tiles, thumbnail `shapes.small`
+- [x] Task 5: `shape = QuickLoggerButtonShape` on Expense-edit `Button` / `OutlinedButton`
 
 ### Checkpoint: Sprint complete
-- [x] `lint`, `test` (209, +40 over sprint 6), `assembleDebug` green
-- [x] `connectedDebugAndroidTest`: non-Compose suites green; Compose suites blocked by a pre-existing emulator/Espresso issue unrelated to this sprint (see Risks)
-- [x] Sprint 7 exit criteria checked (human visual review still open, as every visual criterion has been since sprint 6)
+- [x] `lint`, `test` (213, no tests added), `assembleDebug` green
+- [x] No assertion edits in `LogScreenTest` / `DashboardScreenTest` / `ExpenseEditScreenTest`
+- [x] No schema, DAO, repository, use case, or ViewModel file modified
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| `room-testing:2.8.4`'s own metadata pins `kotlinx-serialization-core` inconsistently with `room-migration`'s `kotlinx-serialization-json:1.8.1`, throwing `AbstractMethodError` inside `MigrationTestHelper` | High (migration untestable) | `resolutionStrategy.force` on the `androidTest` configurations in `app/build.gradle.kts`, scoped to test dependencies only |
-| A category bar with expenses in two currencies and no target picks one "dominant" currency (largest total) and silently excludes the rest | Low | Documented in code and in `tasks/todo.md` follow-ups; matches the target-currency exclusion rule already in place |
-| Compose UI instrumented tests (`LogScreenTest`, `DashboardScreenTest`, `ExpenseEditScreenTest`) fail on this emulator image with `NoSuchMethodException: InputManager.getInstance` | Med (can't prove UI wiring on-device this session) | Confirmed pre-existing and unrelated: `ExpenseEditScreenTest`, untouched this sprint, fails identically. JVM `LogViewModelTest`/`DashboardViewModelTest` cover the same logic without Espresso. |
-| The overall target's "one row" invariant depends on the repository always going through `withTransaction`, not on the schema alone | Low | `RoomBudgetTargetRepository` is the only writer; `BudgetTargetDao` has no other insert path exposed outside the repository |
+| Clickable `Surface` tiles split semantics so `onNodeWithContentDescription("Take photo")` no longer clicks | High (Compose tests fail) | Keep `contentDescription` on the `Icon` inside a clickable `Surface` so merge-descendants behaves like `IconButton` |
+| Labels wrap at 200% font scale | Low (exit criterion) | Do not relayout; show wrapping to a human |
+| Inter zip is large (32 MB) | Low | Extract only Regular / Medium / SemiBold + OFL |
 
 ## Open Questions
 
-None blocking. Whether the dashboard should eventually gain a settings-style list view of every target (instead of tap-the-meter / tap-a-bar) is future work if the category count grows large enough that scrolling to find a bar becomes the bottleneck — not asked for, not needed at six-to-a-dozen categories.
+None blocking. The sprint's "§7 becomes `OutlinedButton`" refers to the Save & Share *row*, which lives in the §6 components table in the current DESIGN.md; both §6 and §7 are amended so they match the shipped code.

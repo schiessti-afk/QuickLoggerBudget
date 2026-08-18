@@ -3,6 +3,8 @@ package com.quicklogger.app.presentation.log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,11 +17,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -55,6 +59,7 @@ import com.quicklogger.app.presentation.components.buildTextShareIntent
 import com.quicklogger.app.presentation.components.launchShareChooser
 import com.quicklogger.app.presentation.components.receiptFile
 import com.quicklogger.app.presentation.components.receiptUri
+import com.quicklogger.app.presentation.theme.QuickLoggerButtonShape
 import java.io.File
 
 @Composable
@@ -216,7 +221,13 @@ internal fun LogScreenContent(
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+            )
+
+            Spacer(Modifier.height(16.dp))
 
             ReceiptAttachment(
                 receiptFile = receiptFile,
@@ -229,22 +240,35 @@ internal fun LogScreenContent(
 
             Spacer(Modifier.height(32.dp))
 
-            Button(
-                onClick = { onEvent(LogEvent.Save) },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                enabled = uiState.canSave,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(stringResource(R.string.save))
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            FilledTonalButton(
-                onClick = { onEvent(LogEvent.SaveAndShare) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = uiState.canSave,
-            ) {
-                Text(stringResource(R.string.save_and_share))
+                Button(
+                    onClick = { onEvent(LogEvent.Save) },
+                    modifier = Modifier.weight(1f),
+                    enabled = uiState.canSave,
+                    shape = QuickLoggerButtonShape,
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+                OutlinedButton(
+                    onClick = { onEvent(LogEvent.SaveAndShare) },
+                    modifier = Modifier.weight(1f),
+                    enabled = uiState.canSave,
+                    shape = QuickLoggerButtonShape,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(
+                            alpha = if (uiState.canSave) 1f else 0.38f,
+                        ),
+                    ),
+                ) {
+                    Text(stringResource(R.string.save_and_share))
+                }
             }
         }
     }

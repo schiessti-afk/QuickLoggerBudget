@@ -35,8 +35,8 @@ fun AmountField(
         value = fieldValue,
         onValueChange = { onRawInputChange(it.text) },
         modifier = modifier.fillMaxWidth(),
-        // DESIGN §5.3: tabular/lining figures so the value doesn't jump while
-        // typing, on platform faces that support the "tnum" OpenType feature.
+        // DESIGN §5.3: Inter ships true tabular figures, so "tnum" actually
+        // takes effect and the value doesn't jump while typing.
         textStyle = MaterialTheme.typography.displaySmall.copy(fontFeatureSettings = "tnum"),
         label = { Text(label) },
         singleLine = true,

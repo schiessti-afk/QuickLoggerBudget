@@ -62,8 +62,8 @@ These are already decided. Visual work may only *express* them.
 | Color world | **Fixed seed** (not Material You) | Sealing-wax primary on cream paper. See §5. |
 | Theme | **Light only** | No dark `ColorScheme` in MVP. |
 | Density | **Compact POS on paper** | Tight Log layout; the dashboard can breathe a little more. |
-| Shape | **Soft paper corners** | Chips and cards ~8–12 dp. Not stadium-pill candy, not sharp tickets. |
-| Type | **Platform M3** | Amount uses the largest display/headline role with tabular figures. No bundled display font unless we add `res/font` later. |
+| Shape | **Soft paper corners** | Theme scale: `small = 8.dp` (chips, receipt thumb), `medium = 12.dp` (cards, receipt tiles, buttons), `large = 16.dp`. Not stadium-pill candy, not sharp tickets. M3 buttons default to `CornerFull` and ignore this scale — every `Button` / `OutlinedButton` passes `QuickLoggerButtonShape` (12 dp) explicitly. |
+| Type | **Bundled Inter** | Regular / Medium / SemiBold in `res/font/` (OFL). Amount uses the largest display/headline role with Inter's tabular figures (`tnum`). No runtime download. |
 | Icon language | **Custom 6-category set + Material for chrome** | Camera, gallery, History, delete stay Material Symbols. Seeded categories use generated pictograms (§8.5). Custom user categories fall back to a generic mark. |
 | Motion | **Instant paper** | Chip fill, no bounce. Save clears immediately. No confetti. |
 
@@ -79,7 +79,7 @@ Layout and behavior follow ARCHITECTURE §8. This section only states *visual* i
 
 ### 4.1 Log (start destination)
 
-The amount is the largest number on screen, ink on paper. Category chips sit directly under it, each with its pictogram and a muted accent. Receipt is a small optional strip. Save is the filled sealing-wax button; Save & Share is the tonal/outlined sibling so the fast path stays one glance.
+The amount is the largest number on screen, ink on paper. Category chips sit directly under it, each with its pictogram and a muted accent. Receipt is a small optional strip. Save is the filled sealing-wax button; Save & Share is the outlined sibling (wax hairline, wax label, no fill) so the fast path stays one glance. They sit in one equal-width row.
 
 ```
 ┌─────────────────────────────────┐
@@ -91,10 +91,10 @@ The amount is the largest number on screen, ink on paper. Category chips sit dir
 │                                 │
 │  [🍴 Food] [🚌 Transport] …     │  ← FlowRow, radio chips + pictograms
 │  [ + ]                          │
+│  ─────────────────────────────  │  ← outline, reduced alpha
+│  [cam] [gal]            (thumb) │  ← 56 dp filled tiles; thumb 8 dp
 │                                 │
-│  [camera] [gallery]   (thumb)   │  ← optional; thumb + remove
-│                                 │
-│  [ Save ]     [ Save & Share ]  │
+│  [ Save ]     [ Save & Share ]  │  ← equal width; outlined sibling
 └─────────────────────────────────┘
      ~~~~~~~~ system IME ~~~~~~~~
 ```
@@ -197,10 +197,10 @@ On the dashboard, a category bar is filled with its accent from this table. Stat
 
 ### 5.3 Type
 
-- Amount: largest type on Log (`displaySmall` or `headlineLarge`). Prefer tabular/lining figures so the value does not jump while typing (`FontFeatureSettings("tnum")` if the platform face supports it).
+- Face: Inter, bundled in `res/font/` (Regular / Medium / SemiBold, OFL). Not downloaded at runtime.
+- Amount: largest type on Log (`displaySmall` or `headlineLarge`). Inter ships true tabular figures, so `FontFeatureSettings("tnum")` actually takes effect — a face without them would silently no-op that line and reintroduce typing jitter.
 - Category chips: `labelLarge`; one line; pictogram 18 dp + 8 dp gap + name.
 - History rows: amount `titleMedium`; metadata `bodySmall` in on-surface variant.
-- No custom downloadable font in MVP.
 
 ### 5.4 Budget status color
 
@@ -233,11 +233,12 @@ Status is never carried by color alone (WCAG 2.2 §1.4.1): over budget also chan
 | --- | --- | --- |
 | Amount | Custom field on `BasicTextField` / outlined field | Numeric IME; formatted as digits arrive; no heavy box — a baseline or light outline on paper |
 | Categories | `FilterChip` in `FlowRow`, radio | Selected chip is not toggle-off; leading pictogram |
+| Category/receipt divider | `HorizontalDivider` | `outline` at reduced alpha; sits between the chip block and the receipt strip |
 | Add category | `FilterChip` or `AssistChip` with `+` | Opens dialog; no custom art |
-| Save | `Button` (filled, primary) | Disabled when amount empty |
-| Save & Share | `FilledTonalButton` | Same disable rule; cream-tonal, sealing-wax label |
-| Camera / gallery | `IconButton` | Material Symbols; content descriptions required |
-| Receipt thumb | Small rounded image + remove | Coil; private file path; 8 dp corners |
+| Save | `Button` (filled, primary) | Disabled when amount empty; `shape = QuickLoggerButtonShape` (12 dp), never the M3 stadium pill |
+| Save & Share | `OutlinedButton` | Same disable rule; primary border, primary label, no fill; same 12 dp shape. Equal-width `Row` with Save |
+| Camera / gallery | Filled `Surface` tiles | 56 dp, `surfaceContainer`, `shapes.medium`; ink glyph; content descriptions required |
+| Receipt thumb | Small rounded image + remove | Coil; private file path; `shapes.small` (8 dp) corners |
 | History row | Compact row | Pictogram 20 dp; receipt indicator is Material `photo` |
 | Period | `FilterChip` | Day / week / month; brand seed, not category color |
 | Top bar | `TopAppBar` | Wordmark/glyph 24 dp + title; Dashboard action on Log, back arrow on Dashboard |
@@ -253,7 +254,7 @@ Status is never carried by color alone (WCAG 2.2 §1.4.1): over budget also chan
 - Amount field and both save actions announced clearly; camera/gallery are not unlabeled glyphs.
 - Contrast: ink on paper and white-on-primary must meet WCAG 2.2 AA. Selected chip fill is tinted — **label stays ink** (`#2A241F`), not white on ochre.
 - Currency strings can grow; the amount must shrink or wrap *down*, never overlap chips.
-- Touch targets 48 dp; chips can be visually shorter if the hit box is not.
+- Touch targets ≥ 48 dp; camera/gallery tiles are 56 dp. Chips can be visually shorter if the hit box is not.
 - Pictograms are decorative next to visible labels. `contentDescription` null on the image; the chip label is enough. Launcher icon is the exception (system labeled).
 
 ---
@@ -354,7 +355,7 @@ This design is doing its job when:
 5. Launcher mark: abstract receipt fold.
 6. Empty History: generate §8.3.
 7. Category pictograms: generate the six in §8.5; chrome icons stay Material.
-8. Amount type: platform M3 (not asked; assumed).
+8. Amount type: bundled Inter in `res/font/` (Regular / Medium / SemiBold, OFL). Tabular figures via `tnum`. Approved sprint 8 (2026-08-18).
 9. No Figma required for MVP.
 10. Beauty must not add taps, routes, or a splash delay.
 11. Brand seed is `#9A4A32` (confirmed).
@@ -364,13 +365,21 @@ This design is doing its job when:
 15. The meter and category bars are hand-drawn Compose `Canvas`. No charting dependency.
 16. Second page is the **Dashboard**: budget overview above the existing list, not a replacement for it.
 17. Targets are set by tapping the meter or a bar (dialog), not on a settings screen.
+18. Save & Share is `OutlinedButton` (wax hairline, wax label), not `FilledTonalButton`. The GitHub social preview is the shape reference; DESIGN was amended to match. Approved sprint 8 (2026-08-18).
+19. M3 buttons ignore the theme `Shapes` scale (`CornerFull` → `CircleShape`). Every `Button` / `OutlinedButton` passes `QuickLoggerButtonShape` (12 dp) at the call site.
+20. Camera/gallery on Log are filled 56 dp `Surface` tiles, not 48 dp `IconButton`s.
 
 ### Still open
 
-- **Amount typeface.** Assumed platform M3. Say if you want a bundled tabular font in `res/font`.
+- None for type. Inter is the face; a later weight (Bold) or italic is not required for MVP.
 
 ### Sprint 6 implementation notes
 
 - **Vector trace (resolved).** The launcher fold, toolbar glyph, six pictograms, and the empty-History illustration are hand-drawn `VectorDrawable`s in `res/drawable/` (`ic_launcher_foreground`, `ic_launcher_monochrome`, `ic_toolbar_receipt`, `ic_category_*`, `ic_empty_history`) rather than a pixel trace of the `assets/` PNGs — same silhouettes and line weight, redrawn as clean path data.
 - **Camera/gallery deviation from §6's "Material Symbols."** `material-icons-core` has no camera or gallery glyph; `material-icons-extended` would add a large dependency for two icons. `ic_action_camera` / `ic_action_gallery` are hand-drawn in the same ink-line family instead — arguably a closer match to "one ink family" (§8) than mixing in a filled Material Symbol would have been. Delete, History, and the top-bar list action stay Material as specified.
 - **Category → style mapping.** `Category` has no color/icon column (out of this sprint's scope), so `presentation/theme/CategoryStyle.kt` maps by the fixed seed name (`Food`, `Transport`, …) and falls back to Other's accent/pictogram for anything else, including every custom category — matching §4.4 by construction.
+
+### Sprint 8 implementation notes
+
+- Inter 4.1 static TTF (Regular / Medium / SemiBold) from the [v4.1 release](https://github.com/rsms/inter/releases/tag/v4.1); OFL at `third_party/inter/OFL.txt`.
+- Camera/gallery still use the sprint 6 ink glyphs; only the container changed (`IconButton` → 56 dp filled `Surface` tile).
