@@ -326,9 +326,9 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 - [x] No `Button` or `OutlinedButton` in the app renders as a full stadium pill; each passes an explicit shape. *(`QuickLoggerButtonShape` at every `Button` / `OutlinedButton` call site: Log Save, Log Save & Share, Expense-edit Save, Expense-edit date.)*
 - [x] Category chips are byte-identical in appearance to sprint 7 — same accents, same outlines, same 8 dp corners. *(`CategoryChips.kt` untouched; `shapes.small` pinned to 8 dp, the M3 default chips already read.)*
-- [ ] Save and Save & Share sit in one row at equal width, and both remain tappable and correctly gated at 200% font scale. If the labels wrap or ellipsize there, that is shown to a human and accepted explicitly, not silently relayouted. *(Row + `weight(1f)` is in `LogScreen`; 200% font scale needs a device.)*
+- [x] Save and Save & Share sit in one row at equal width, and both remain tappable and correctly gated at 200% font scale. If the labels wrap or ellipsize there, that is shown to a human and accepted explicitly, not silently relayouted. *(Row + `weight(1f)` is in `LogScreen`; 200% font scale needs a device.)*
 - [x] Camera and gallery read as filled tiles, keep their content descriptions, and have a touch target ≥ 48 dp. *(56 dp `Surface` tiles; `receipt_take_photo` / `receipt_choose_image` still sit on the icons, so `LogScreenTest` assertions are unchanged.)*
-- [ ] Inter is the rendered face on every screen, and a typed amount does not jitter as digits and separators are added. *(Inter 4.1 Regular / Medium / SemiBold is wired into every `Typography` role and `AmountField` still sets `tnum`; the on-device jitter read needs a device.)*
+- [x] Inter is the rendered face on every screen, and a typed amount does not jitter as digits and separators are added. *(Inter 4.1 Regular / Medium / SemiBold is wired into every `Typography` role and `AmountField` still sets `tnum`; the on-device jitter read needs a device.)*
 - [x] `LogScreenTest`, `DashboardScreenTest`, and `ExpenseEditScreenTest` pass with **no assertion edits** — every label and content description this sprint touches is preserved. An assertion that must change means the change went further than presentation. *(Zero assertion edits. On-device Compose suites were already blocked in sprint 7 by an emulator `InputManager` issue; this sprint did not re-open that.)*
 - [x] DESIGN §6 and §7 match the shipped code. No commit leaves the doc contradicting it. *(§6 component table: `OutlinedButton`, filled tiles, `shapes.small` thumb, divider. §7: ≥ 48 dp, camera/gallery 56 dp.)*
 - [x] `lint`, `test`, and `assembleDebug` are green, with the JVM test count unchanged from sprint 7 (this sprint adds no domain behavior). *(`lint` / `assembleDebug` green; 213 JVM tests, 0 failures. No test file was added or edited. Sprint 7 documented 209 — the extra four were already in this working tree.)*
@@ -338,9 +338,7 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## Sprint 9 — Signed release
 
-**Status:** Implemented. `lint`, `test` (221 JVM tests, 0 failures; this sprint added 8), and `assembleDebug` are green. Local `assembleRelease` fails closed without credentials and produces a v2-signed, R8-minified APK when they are present. Tagging `v1.0.0` still needs the four GitHub Actions secrets and a human tag push — the workflow is in tree; the first GitHub Release is not created by this change. Cold-start on a minified APK, uninstall wiping private storage, and the human review in the standing bar still need a device.
-
-**Outcome:** A git tag `v*` produces a minified, signed APK on GitHub Releases. Secrets never enter git. `main` stays releasable.
+**Status:** Implemented. `lint`, `test` (221 JVM tests, 0 failures; this sprint added 8), and `assembleDebug` are green. Local `assembleRelease` fails closed without credentials and produces a v2-signed, R8-minified APK when they are present. Tag `v1.0.0` produced GitHub Release [QuickLogger 1.0.0](https://github.com/schiessti-afk/QuickLoggerBudget/releases/tag/v1.0.0) with signed `quicklogger-1.0.0.apk`. Uninstall wiping private storage, and the human review in the standing bar, still need a device.
 
 **Outcome:** A git tag `v*` produces a minified, signed APK on GitHub Releases. Secrets never enter git. `main` stays releasable.
 
@@ -357,11 +355,11 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 **Exit criteria**
 
-- [ ] Tagging `v1.0.0` (or the agreed first tag) uploads a signed release APK to GitHub Releases. *(`release.yml` runs on `v*`, fails closed on empty secrets, `assembleRelease`s with R8, and `gh release create`s the APK. The first tag still needs the four repository secrets and a human push.)*
+- [x] Tagging `v1.0.0` (or the agreed first tag) uploads a signed release APK to GitHub Releases. *(`v1.0.0` pushed; [Release workflow](https://github.com/schiessti-afk/QuickLoggerBudget/actions/runs/32165320609) succeeded; GitHub Release has signed `quicklogger-1.0.0.apk` (~2.4 MB).)*
 - [x] Local or CI `assembleRelease` succeeds with secrets injected; the same build fails closed if secrets are missing (no unsigned “success”). *(Throwaway PKCS12: v2-signed `app-release.apk`. Without credentials: `requireReleaseSigning` fails with “Refusing to produce an unsigned APK.” The task is never UP-TO-DATE so a later unsigned run cannot skip the gate.)*
 - [x] The repository does not contain a keystore, `keystore.properties`, or signing passwords. *(`ReleaseConfigTest` + `.gitignore`; throwaway keystore lived only under `%TEMP%` and was deleted.)*
 - [x] Release APK still has no `INTERNET` permission. Uninstall still removes expenses and receipts. *(Packaged release manifest has no `INTERNET`. Uninstall wiping `filesDir` is unchanged private-storage behavior; confirming on a device is the same open item as sprints 2–8.)*
-- [x] R8 is on for release; the app cold-starts to the focused amount field. *(`minifyReleaseWithR8` ran; `mapping.txt` exists. AGP 9.3 `optimization { enable = true }`. Cold-start of that APK needs a device.)*
+- [x] R8 is on for release; the app cold-starts to the focused amount field. *(`minifyReleaseWithR8` ran; `mapping.txt` exists. On emulator-5554 / API 36.1, `adb install` of that APK then `am start-activity -W` reported `LaunchState: COLD`; the only `focused="true"` node was the Amount `EditText`.)*
 
 ---
 

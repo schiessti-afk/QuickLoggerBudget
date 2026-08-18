@@ -13,7 +13,7 @@ A git tag `v*` produces a minified, signed APK on GitHub Releases. Secrets never
 - **GitHub secrets (never in git).** `RELEASE_KEYSTORE_BASE64` (binary storeFile, [Base64 secret workaround](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions#storing-base64-binary-blobs-as-secrets)), `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`. Unset secrets are empty strings; the workflow checks that before assemble.
 - **Versioning.** `versionName` from the tag with the leading `v` stripped (`v1.0.0` → `1.0.0`), passed as `-PversionName`. `versionCode` is `${{ github.run_number }}` (ARCHITECTURE §13 allows run number). Untagged local defaults stay `0.1.0` / `1`.
 - **Release upload.** `gh release create` with `permissions: contents: write` and `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. GitHub CLI is preinstalled on hosted runners ([Using GitHub CLI in workflows](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/using-github-cli-in-workflows), [gh release create](https://cli.github.com/manual/gh_release_create)). No third-party release action.
-- **No tag in this change.** Wiring the pipeline is the sprint. Pushing `v1.0.0` is a human step after repository secrets exist.
+- **Tag `v1.0.0`.** Wired in this sprint; the human tag push landed and produced [QuickLogger 1.0.0](https://github.com/schiessti-afk/QuickLoggerBudget/releases/tag/v1.0.0).
 
 ## Task List
 
@@ -44,4 +44,4 @@ A git tag `v*` produces a minified, signed APK on GitHub Releases. Secrets never
 
 ## Open Questions
 
-None blocking. First GitHub Release still needs the four repository secrets and a human `git tag` / `git push --tags`.
+None. `v1.0.0` is on GitHub Releases.

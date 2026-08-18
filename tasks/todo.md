@@ -27,5 +27,5 @@
 - [x] `.\gradlew.bat assembleRelease` fails without secrets
 - [x] Throwaway-keystore `assembleRelease` succeeds; no `INTERNET` in the packaged release manifest; `minifyReleaseWithR8` + `mapping.txt`
 - [x] No keystore / `keystore.properties` / passwords in the working tree that would be committed
-- [ ] Human: set the four GitHub Actions secrets and push `v1.0.0`
-- [ ] Human/device: cold-start the minified APK to the focused amount field
+- [x] Human: push `v1.0.0` (repository secrets are already set) — [QuickLogger 1.0.0](https://github.com/schiessti-afk/QuickLoggerBudget/releases/tag/v1.0.0)
+- [x] Human/device: cold-start the minified APK to the focused amount field
