@@ -23,7 +23,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -35,12 +37,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.quicklogger.app.R
 import com.quicklogger.app.domain.repository.ReceiptError
-import com.quicklogger.app.domain.usecase.SaveExpenseError
+import com.quicklogger.app.domain.usecase.CategoryError
+import com.quicklogger.app.domain.usecase.ExpenseError
+import com.quicklogger.app.presentation.categories.CreateCategoryDialog
 import com.quicklogger.app.presentation.components.AmountField
 import com.quicklogger.app.presentation.components.CategoryChips
 import com.quicklogger.app.presentation.components.ReceiptAttachment
 import com.quicklogger.app.presentation.components.receiptFile
 import com.quicklogger.app.presentation.components.receiptUri
+import com.quicklogger.app.presentation.receipt.ReceiptAttachmentUiEvent
 import java.io.File
 
 @Composable
@@ -66,7 +71,7 @@ fun LogScreen(
     LaunchedEffect(Unit) {
         viewModel.uiEvents.collect { event ->
             when (event) {
-                is LogUiEvent.LaunchCamera ->
+                is ReceiptAttachmentUiEvent.LaunchCamera ->
                     cameraLauncher.launch(receiptUri(context, event.relativePath))
             }
         }
@@ -96,6 +101,7 @@ internal fun LogScreenContent(
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    var showCreateCategoryDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -152,7 +158,16 @@ internal fun LogScreenContent(
                 categories = uiState.categories,
                 selectedCategoryId = uiState.selectedCategoryId,
                 onCategorySelected = { onEvent(LogEvent.CategorySelected(it)) },
+                onAddCategory = { showCreateCategoryDialog = true },
             )
+
+            uiState.categoryError?.let { error ->
+                Text(
+                    text = stringResource(error.messageRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
 
@@ -176,20 +191,36 @@ internal fun LogScreenContent(
             }
         }
     }
+
+    if (showCreateCategoryDialog) {
+        CreateCategoryDialog(
+            onDismiss = { showCreateCategoryDialog = false },
+            onCreate = { onEvent(LogEvent.CreateCategoryRequested(it)) },
+        )
+    }
 }
 
 /**
  * Domain errors carry no user-facing copy; strings stay in `values/strings.xml`.
  * Save is disabled while the form is invalid, so these are defensive.
  */
-private val SaveExpenseError.messageRes: Int
+private val ExpenseError.messageRes: Int
     get() = when (this) {
-        SaveExpenseError.InvalidAmount -> R.string.error_amount_must_be_positive
-        SaveExpenseError.UnknownCategory -> R.string.error_category_missing
+        ExpenseError.InvalidAmount -> R.string.error_amount_must_be_positive
+        ExpenseError.UnknownCategory -> R.string.error_category_missing
     }
 
 private val ReceiptError.messageRes: Int
     get() = when (this) {
         ReceiptError.TooLarge -> R.string.error_receipt_too_large
         ReceiptError.Unreadable -> R.string.error_receipt_unreadable
+    }
+
+internal val CategoryError.messageRes: Int
+    get() = when (this) {
+        CategoryError.NameRequired -> R.string.error_category_name_required
+        CategoryError.NameTooLong -> R.string.error_category_name_too_long
+        CategoryError.DuplicateName -> R.string.error_category_duplicate_name
+        CategoryError.NotFound -> R.string.error_category_not_found
+        CategoryError.ProtectedCategory -> R.string.error_category_protected
     }

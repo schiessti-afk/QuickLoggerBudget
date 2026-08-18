@@ -7,10 +7,12 @@ import com.quicklogger.app.domain.repository.ExpenseRepository
 import com.quicklogger.app.domain.repository.LastCategoryStore
 import com.quicklogger.app.domain.repository.ReceiptError
 import com.quicklogger.app.domain.repository.ReceiptStore
+import com.quicklogger.app.domain.usecase.CategoryError
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 
 /**
  * In-memory stand-ins for the data layer. ARCHITECTURE §12: use case tests fake
@@ -20,19 +22,40 @@ class FakeExpenseRepository : ExpenseRepository {
     private val rows = MutableStateFlow<List<Expense>>(emptyList())
 
     val inserted: List<Expense> get() = rows.value
+    val deletedIds = mutableListOf<Long>()
 
     override fun observeAllNewestFirst(): Flow<List<Expense>> =
         rows.map { list -> list.sortedByDescending { it.occurredAt } }
+
+    override fun observeInRange(from: Instant, to: Instant): Flow<List<Expense>> = rows.map { list ->
+        list.filter { it.occurredAt >= from && it.occurredAt < to }
+            .sortedByDescending { it.occurredAt }
+    }
 
     override suspend fun insert(expense: Expense): Expense {
         val stored = expense.copy(id = rows.value.size + 1L)
         rows.value = rows.value + stored
         return stored
     }
+
+    override suspend fun getById(id: Long): Expense? = rows.value.firstOrNull { it.id == id }
+
+    override suspend fun update(expense: Expense) {
+        rows.value = rows.value.map { if (it.id == expense.id) expense else it }
+    }
+
+    override suspend fun delete(id: Long) {
+        rows.value = rows.value.filterNot { it.id == id }
+        deletedIds += id
+    }
 }
 
 class FakeCategoryRepository(categories: List<Category> = emptyList()) : CategoryRepository {
     private val rows = MutableStateFlow(categories)
+    private var nextId = (categories.maxOfOrNull { it.id } ?: 0L) + 1
+
+    /** (deletedId, reassignedTo) pairs, so tests can assert the atomic-pair contract. */
+    val deletions = mutableListOf<Pair<Long, Long>>()
 
     fun emit(categories: List<Category>) {
         rows.value = categories
@@ -41,6 +64,26 @@ class FakeCategoryRepository(categories: List<Category> = emptyList()) : Categor
     override fun observeAll(): Flow<List<Category>> = rows.asStateFlow()
 
     override suspend fun getById(id: Long): Category? = rows.value.firstOrNull { it.id == id }
+
+    override suspend fun insert(name: String): Category {
+        if (rows.value.any { it.name.equals(name, ignoreCase = true) }) throw CategoryError.DuplicateName
+        val sortOrder = (rows.value.maxOfOrNull { it.sortOrder } ?: -1) + 1
+        val category = Category(id = nextId++, name = name, sortOrder = sortOrder, isProtected = false)
+        rows.value = rows.value + category
+        return category
+    }
+
+    override suspend fun rename(id: Long, name: String) {
+        if (rows.value.any { it.id != id && it.name.equals(name, ignoreCase = true) }) {
+            throw CategoryError.DuplicateName
+        }
+        rows.value = rows.value.map { if (it.id == id) it.copy(name = name) else it }
+    }
+
+    override suspend fun delete(id: Long, reassignExpensesTo: Long) {
+        deletions += id to reassignExpensesTo
+        rows.value = rows.value.filterNot { it.id == id }
+    }
 }
 
 /**

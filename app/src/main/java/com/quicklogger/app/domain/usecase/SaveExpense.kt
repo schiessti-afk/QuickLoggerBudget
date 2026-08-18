@@ -7,12 +7,6 @@ import com.quicklogger.app.domain.repository.ExpenseRepository
 import java.time.Clock
 import javax.inject.Inject
 
-/** Why a save was refused. Validation is domain work, not Compose work. */
-sealed class SaveExpenseError(message: String) : Exception(message) {
-    data object InvalidAmount : SaveExpenseError("Amount must be greater than zero")
-    data object UnknownCategory : SaveExpenseError("Selected category no longer exists")
-}
-
 /**
  * Writes one expense after validating it.
  *
@@ -26,9 +20,9 @@ class SaveExpense @Inject constructor(
     private val clock: Clock,
 ) {
     suspend operator fun invoke(input: NewExpense): Result<Expense> {
-        if (input.amount.minor <= 0L) return Result.failure(SaveExpenseError.InvalidAmount)
+        if (input.amount.minor <= 0L) return Result.failure(ExpenseError.InvalidAmount)
         if (categories.getById(input.categoryId) == null) {
-            return Result.failure(SaveExpenseError.UnknownCategory)
+            return Result.failure(ExpenseError.UnknownCategory)
         }
 
         val now = clock.instant()

@@ -3,8 +3,8 @@ package com.quicklogger.app
 import com.quicklogger.app.domain.model.Category
 import com.quicklogger.app.domain.model.Money
 import com.quicklogger.app.domain.model.NewExpense
+import com.quicklogger.app.domain.usecase.ExpenseError
 import com.quicklogger.app.domain.usecase.SaveExpense
-import com.quicklogger.app.domain.usecase.SaveExpenseError
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -66,7 +66,7 @@ class SaveExpenseTest {
             NewExpense(amount = Money(0, "USD"), categoryId = food.id),
         )
 
-        assertEquals(SaveExpenseError.InvalidAmount, result.exceptionOrNull())
+        assertEquals(ExpenseError.InvalidAmount, result.exceptionOrNull())
         assertTrue(expenses.inserted.isEmpty())
     }
 
@@ -78,7 +78,7 @@ class SaveExpenseTest {
             NewExpense(amount = Money(-1, "USD"), categoryId = food.id),
         )
 
-        assertEquals(SaveExpenseError.InvalidAmount, result.exceptionOrNull())
+        assertEquals(ExpenseError.InvalidAmount, result.exceptionOrNull())
         assertTrue(expenses.inserted.isEmpty())
     }
 
@@ -90,7 +90,7 @@ class SaveExpenseTest {
             NewExpense(amount = Money(4500, "USD"), categoryId = 99L),
         )
 
-        assertEquals(SaveExpenseError.UnknownCategory, result.exceptionOrNull())
+        assertEquals(ExpenseError.UnknownCategory, result.exceptionOrNull())
         assertTrue(expenses.inserted.isEmpty())
     }
 

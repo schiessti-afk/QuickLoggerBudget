@@ -116,4 +116,117 @@ class QuickLoggerDatabaseTest {
 
         assertTrue("foreign key should be enforced", insertOrphan.isFailure)
     }
+
+    // --- sprint 4: range, update, delete ---
+
+    private suspend fun foodCategory() = database.categoryDao().observeAll().first().first { it.name == "Food" }
+
+    private fun expenseAt(categoryId: Long, occurredAt: Long) = ExpenseEntity(
+        amountMinor = 100,
+        currencyCode = "USD",
+        categoryId = categoryId,
+        occurredAtEpochMs = occurredAt,
+        receiptRelativePath = null,
+        createdAtEpochMs = occurredAt,
+        updatedAtEpochMs = occurredAt,
+    )
+
+    @Test
+    fun observeInRangeExcludesTheUpperBound() = runTest {
+        val food = foodCategory()
+        database.expenseDao().insert(expenseAt(food.id, 1_000L))
+        database.expenseDao().insert(expenseAt(food.id, 2_000L))
+
+        val inRange = database.expenseDao().observeInRange(1_000L, 2_000L).first()
+
+        assertEquals(listOf(1_000L), inRange.map { it.occurredAtEpochMs })
+    }
+
+    @Test
+    fun updateOverwritesTheStoredRow() = runTest {
+        val food = foodCategory()
+        val id = database.expenseDao().insert(expenseAt(food.id, 1_000L))
+        val original = database.expenseDao().getById(id)!!
+
+        database.expenseDao().update(original.copy(amountMinor = 999, currencyCode = "BRL"))
+
+        val updated = database.expenseDao().getById(id)!!
+        assertEquals(999L, updated.amountMinor)
+        assertEquals("BRL", updated.currencyCode)
+    }
+
+    @Test
+    fun deleteRemovesTheRow() = runTest {
+        val food = foodCategory()
+        val id = database.expenseDao().insert(expenseAt(food.id, 1_000L))
+
+        database.expenseDao().delete(id)
+
+        assertEquals(null, database.expenseDao().getById(id))
+    }
+
+    @Test
+    fun maxSortOrderIsMinusOneWhenEmpty() = runTest {
+        val empty = Room.inMemoryDatabaseBuilder(
+            androidx.test.core.app.ApplicationProvider.getApplicationContext(),
+            QuickLoggerDatabase::class.java,
+        ).build()
+
+        assertEquals(-1, empty.categoryDao().maxSortOrder())
+        empty.close()
+    }
+
+    @Test
+    fun maxSortOrderReflectsTheSeededRows() = runTest {
+        assertEquals(5, database.categoryDao().maxSortOrder())
+    }
+
+    @Test
+    fun renameChangesOnlyTheTargetedRow() = runTest {
+        val food = foodCategory()
+
+        database.categoryDao().rename(food.id, "Groceries")
+
+        assertEquals("Groceries", database.categoryDao().getById(food.id)!!.name)
+    }
+
+    @Test
+    fun deleteUnprotectedRefusesToDeleteTheProtectedRow() = runTest {
+        val other = database.categoryDao().observeAll().first().first { it.name == "Other" }
+
+        database.categoryDao().deleteUnprotected(other.id)
+
+        assertTrue(
+            "Other must survive an attempted delete",
+            database.categoryDao().observeAll().first().any { it.id == other.id },
+        )
+    }
+
+    @Test
+    fun reassignCategoryMovesEveryMatchingExpense() = runTest {
+        val food = foodCategory()
+        val other = database.categoryDao().observeAll().first().first { it.name == "Other" }
+        database.expenseDao().insert(expenseAt(food.id, 1_000L))
+        database.expenseDao().insert(expenseAt(food.id, 2_000L))
+
+        database.expenseDao().reassignCategory(food.id, other.id, 5_000L)
+
+        val all = database.expenseDao().observeAllNewestFirst().first()
+        assertTrue(all.all { it.categoryId == other.id })
+        assertTrue(all.all { it.updatedAtEpochMs == 5_000L })
+    }
+
+    @Test
+    fun deletingACategoryAfterReassignmentDoesNotViolateTheForeignKey() = runTest {
+        val food = foodCategory()
+        val other = database.categoryDao().observeAll().first().first { it.name == "Other" }
+        database.expenseDao().insert(expenseAt(food.id, 1_000L))
+
+        // Mirrors the transaction RoomCategoryRepository.delete runs: reassign, then delete.
+        database.expenseDao().reassignCategory(food.id, other.id, 5_000L)
+        database.categoryDao().deleteUnprotected(food.id)
+
+        assertEquals(null, database.categoryDao().getById(food.id))
+        assertTrue(database.expenseDao().observeAllNewestFirst().first().all { it.categoryId == other.id })
+    }
 }

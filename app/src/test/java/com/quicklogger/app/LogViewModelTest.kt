@@ -1,6 +1,7 @@
 package com.quicklogger.app
 
 import com.quicklogger.app.domain.model.Category
+import com.quicklogger.app.domain.usecase.CreateCategory
 import com.quicklogger.app.domain.usecase.CreateReceiptDraft
 import com.quicklogger.app.domain.usecase.DeleteReceipt
 import com.quicklogger.app.domain.usecase.ImportReceipt
@@ -9,6 +10,7 @@ import com.quicklogger.app.domain.usecase.ReceiptHasContent
 import com.quicklogger.app.domain.usecase.SaveExpense
 import com.quicklogger.app.presentation.log.LogEvent
 import com.quicklogger.app.presentation.log.LogViewModel
+import com.quicklogger.app.presentation.receipt.ReceiptAttachmentController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -64,10 +66,13 @@ class LogViewModelTest {
                 Clock.fixed(Instant.parse("2026-08-17T17:32:00Z"), ZoneOffset.UTC),
             ),
             lastCategoryStore = lastCategory,
-            createReceiptDraft = CreateReceiptDraft(receipts),
-            importReceipt = ImportReceipt(receipts),
-            deleteReceipt = DeleteReceipt(receipts),
-            receiptHasContent = ReceiptHasContent(receipts),
+            createCategory = CreateCategory(categoryRepository),
+            receiptAttachment = ReceiptAttachmentController(
+                CreateReceiptDraft(receipts),
+                ImportReceipt(receipts),
+                DeleteReceipt(receipts),
+                ReceiptHasContent(receipts),
+            ),
             localeProvider = Provider { locale },
         )
     }

@@ -1,7 +1,8 @@
 package com.quicklogger.app.presentation.log
 
 /**
- * Save & Share arrives in sprint 5; it is not stubbed here.
+ * Save & Share arrives in sprint 5; it is not stubbed here. Camera-launch is a
+ * one-shot effect owned by `ReceiptAttachmentController.events`, not a `LogEvent`.
  */
 sealed interface LogEvent {
     data class AmountChanged(val raw: String) : LogEvent
@@ -24,13 +25,9 @@ sealed interface LogEvent {
     data class ReceiptPicked(val sourceUri: String) : LogEvent
 
     data object RemoveReceipt : LogEvent
-}
 
-/**
- * One-shot effects. ARCHITECTURE §5 rule 4: these are consumed once and dropped,
- * never parked in `UiState` where they would replay on the next recomposition.
- */
-sealed interface LogUiEvent {
-    /** The draft file already exists; the UI resolves it to a FileProvider Uri. */
-    data class LaunchCamera(val relativePath: String) : LogUiEvent
+    /** Submitted from the `+` chip dialog. Dialog visibility itself is local Compose state. */
+    data class CreateCategoryRequested(val name: String) : LogEvent
+
+    data object DismissCategoryError : LogEvent
 }

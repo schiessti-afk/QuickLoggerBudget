@@ -4,14 +4,15 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.quicklogger.app.domain.model.Category
 import com.quicklogger.app.domain.repository.ReceiptError
+import com.quicklogger.app.domain.usecase.CategoryError
 import com.quicklogger.app.presentation.log.LogEvent
 import com.quicklogger.app.presentation.log.LogScreenContent
 import com.quicklogger.app.presentation.log.LogUiState
@@ -199,5 +200,44 @@ class LogScreenTest {
         )
 
         composeRule.onNodeWithText("Save").assertIsNotEnabled()
+    }
+
+    // --- category creation (sprint 4) ---
+
+    @Test
+    fun tappingThePlusChipOpensTheCreateDialog() {
+        setContent(LogUiState(categories = listOf(food), selectedCategoryId = food.id))
+
+        composeRule.onNodeWithText("+").performClick()
+
+        composeRule.onNodeWithText("New category").assertExists()
+    }
+
+    @Test
+    fun submittingANameEmitsCreateCategoryRequested() {
+        val events = mutableListOf<LogEvent>()
+        setContent(
+            LogUiState(categories = listOf(food), selectedCategoryId = food.id),
+            onEvent = { events += it },
+        )
+        composeRule.onNodeWithText("+").performClick()
+
+        composeRule.onNodeWithText("Name").performTextInput("Groceries")
+        composeRule.onNodeWithText("Create").performClick()
+
+        assertEquals(listOf(LogEvent.CreateCategoryRequested("Groceries")), events)
+    }
+
+    @Test
+    fun aCategoryErrorShowsBelowTheChips() {
+        setContent(
+            LogUiState(
+                categories = listOf(food),
+                selectedCategoryId = food.id,
+                categoryError = CategoryError.DuplicateName,
+            ),
+        )
+
+        composeRule.onNodeWithText("A category with this name already exists.").assertExists()
     }
 }

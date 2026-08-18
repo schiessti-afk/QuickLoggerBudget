@@ -1,83 +1,74 @@
-# Implementation Plan: Sprint 3 — Private receipts
+# Implementation Plan: Sprint 4 — History and corrections
 
 ## Overview
 
-Let a log optionally carry one photo, from the system camera or the photo picker, stored only under `filesDir/receipts/{uuid}.jpg`. The file never reaches the gallery, a cancelled capture leaves nothing behind, and replacing a receipt deletes the file it replaced. `SaveExpense` already accepts `receiptRelativePath` — sprint 3 fills it in.
+History becomes real: a newest-first list filtered by day/week/month, per-currency totals, edit (amount/category/receipt/`occurredAt`), delete with confirmation, and full category CRUD (create from Log's `+` chip, rename/delete from a History-reachable dialog). This is the largest sprint so far — it touches every layer and adds two new screens.
 
-## The central constraint
+## The one structural decision worth calling out
 
-Exit criteria say the ViewModel holds no `Context`, `Uri`, or `AndroidViewModel`. But the flow needs both: `TakePicture` wants a `FileProvider` Uri for a file that must exist *before* the camera launches, and the picker hands back a `content://` Uri.
-
-The seam:
-
-```
-UI (has Context)          ViewModel (has neither)        Data (has Context)
-─────────────────────────────────────────────────────────────────────────────
-tap camera        ──►  LogEvent.CaptureReceipt
-                            │
-                            ├─► CreateReceiptDraft ──►  creates {uuid}.jpg, empty
-                            │                             returns "uuid.jpg"
-                       LogUiEvent.LaunchCamera("uuid.jpg")
-                            │
-  resolve File +  ◄─────────┘
-  FileProvider Uri,
-  launch TakePicture
-        │
-        └─────────►  LogEvent.ReceiptCaptured(success)
-                            │
-                            ├─ true  → confirm, delete the receipt it replaced
-                            └─ false → DeleteReceipt(draft)
-```
-
-- The ViewModel only ever handles the **relative path string** and a **Uri string**. Never an `android.net.Uri`, never a `Context`.
-- Uri resolution and both Activity Result launchers live in the composable, which ARCHITECTURE §3.1 explicitly permits.
-- Camera launch is a **one-shot** `LogUiEvent` over a `Channel`, not `UiState` (ARCHITECTURE §5 rule 4). Sprint 5 reuses the same channel for the share sheet.
+The receipt attach/replace/remove/capture state machine that sprint 3 built into `LogViewModel` is needed **identically** by the new expense-edit screen: same draft-before-launch sequencing, same "success but zero bytes is a failure" check, same "replacing deletes the old file" rule. Duplicating ~150 lines of file-lifecycle logic across two ViewModels is a correctness risk (the two copies *will* drift), not a style preference, so it moves into a shared `ReceiptAttachmentController` — a plain injectable class (not a ViewModel) holding its own `StateFlow`/`Channel`, driven by each owning ViewModel's `viewModelScope`. `LogViewModel` and `ExpenseEditViewModel` each get their own instance (unscoped Hilt binding) and project its state into their own `UiState` shape, so the public screen contracts don't change. This is sprint 2/3 code being touched to *serve* sprint 4, not a drive-by refactor.
 
 ## Architecture Decisions
 
-- **`RECEIPTS_DIRECTORY` lives in domain.** Data resolves it against `filesDir`, presentation resolves it for `FileProvider` and Coil. Putting it in data would force presentation to import data and invert the dependency arrow.
-- **The picker Uri crosses layers as a `String`.** `LogEvent.ReceiptPicked(sourceUri: String)`; `ReceiptFileStore` calls `Uri.parse` on the far side. The ViewModel stays JVM-testable with a fake and holds no Android type — which is what the rule protects.
-- **Draft path is ViewModel-private, not in `UiState`.** The thumbnail must not appear until the capture actually succeeds, so the in-progress file is tracked separately from the confirmed `receiptRelativePath`.
-- **Oversized picks are rejected, not downscaled.** The sprint allows either. Rejecting needs no `Bitmap` decode in the data layer and gives the user a clear message; downscaling is a silent quality change. The copy streams with a running byte count and aborts past 10 MB, so a source that misreports its size cannot slip through.
-- **Save clears the receipt without deleting it.** After a successful write the file belongs to the persisted expense. Only replace, remove, and failed capture delete.
-- **`file_paths.xml` gets `files-path` only.** The `cache-path` entry ARCHITECTURE §7.3 lists is for CSV export in sprint 5; adding it now would be pulling roadmap work forward.
-- **FileProvider authority is `"${context.packageName}.fileprovider"`** resolved at runtime, matching the manifest's `${applicationId}` placeholder without turning on the `buildConfig` feature.
-- **No orphan sweep.** A receipt attached and then abandoned by a process kill leaves one file. Cleaning that up is not in the sprint, and a sweep on launch would be new unspecified behavior.
+- **`SaveExpenseError` becomes `ExpenseError`.** `UpdateExpense` needs the same two validation rules as `SaveExpense` (`minor > 0`, category exists). One error hierarchy, used by both — mechanical rename across ~5 files, not a scope expansion.
+- **Week/month bounds never touch `Locale`.** `PeriodBounds` takes `(period, today: LocalDate, zone: ZoneId)` and finds Monday with `TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)` — the ISO constant, not `WeekFields.of(locale)`. That is what makes the exit criterion ("always Monday, including on Sunday-`firstDayOfWeek` locales") true *by construction* rather than by a runtime check.
+- **Bounds are half-open `[start, end)`.** All three periods end at "start of tomorrow" in the device zone; day/week/month only differ in where they start. One shared `end` computation, three `start` branches.
+- **Totals are a pure grouping function**, `ExpenseTotals.byCurrency(List<Expense>): List<Money>` — group by `currencyCode`, sum minor units within each group, never across groups. This is the only code path that produces a "total"; nothing upstream (History or, later, share/CSV in sprint 5) is allowed to add two `Money` values directly.
+- **Category name-uniqueness stays a Room constraint, not a Kotlin scan.** The unique index from sprint 2 already enforces case-insensitive uniqueness. `RoomCategoryRepository` is the *only* place that imports `SQLiteConstraintException` and turns it into `CategoryError.DuplicateName` — a domain-safe type — before it ever reaches a use case. Domain never sees the Android exception type.
+- **Delete-category is one Room transaction, not two writes from Kotlin.** `ExpenseDao.reassignCategory(fromId, toId, updatedAt)` (a single `UPDATE`) then `CategoryDao.deleteUnprotected(id)`, wrapped in `db.withTransaction { }` inside `RoomCategoryRepository`. The domain use case only decides *what* (delete this id, reassign to the protected row); the data layer decides *how* atomically. `deleteUnprotected`'s `WHERE isProtected = 0` is a second line of defense against ever deleting `Other`, on top of the use case's own check.
+- **New custom categories append (`sortOrder = max + 1`).** Nothing in the sprint asks for `Other` to stay visually last forever; keeping it there would mean quietly renumbering existing rows on every create. Simplest correct behavior: append.
+- **Creating a category from the `+` dialog auto-selects it.** Not explicitly required, but a category you just created that isn't usable on the next tap fails the spirit of "adds a chip" — and it's the existing `CategorySelected` path, not new logic.
+- **Dialog visibility is local Compose state; the destructive/mutating action is a ViewModel event.** Applies to the categories-management dialog and the delete-expense confirmation: opening/closing has no business logic to test, so it doesn't need `UiState` plumbing. The actual `Delete`, `Create`, `Rename` events do.
+- **`ExpenseEditViewModel` receives the id via `SavedStateHandle`**, the officially recommended Navigation Compose + Hilt pattern (already cited in ARCHITECTURE's reference list) — not in the "no `Context`/`Uri`/`AndroidViewModel`" prohibition.
+- **Date/time editing uses Material 3's `DatePicker`/`TimePicker`**, already on the Compose BOM — no new dependency. Tap → date dialog → time dialog → combine into one `Instant` in the device zone.
+- **Display formatting stays out of Composables.** `HistoryViewModel` and `ExpenseEditViewModel` format amount and date/time strings using injected `Clock` + `Provider<ZoneId>` + `Provider<Locale>`, mirroring `LogViewModel`'s existing `Provider<Locale>` pattern, so screens stay pure functions of `UiState` and formatting stays JVM-testable.
 
 ## Task List
 
 ### Phase 1: Domain
-- [ ] Task 1: `ReceiptStore` + `ReceiptError` + `CreateReceiptDraft` / `ImportReceipt` / `DeleteReceipt` + JVM tests
+- [ ] Task 1: `DateRange`, `Period`, `PeriodBounds`, `ExpenseTotals`, `ExpenseDateFormatter` + JVM tests
+- [ ] Task 2: Rename `SaveExpenseError` → `ExpenseError`; add `UpdateExpense`, `DeleteExpense`, `ObserveExpensesInRange` + JVM tests
+- [ ] Task 3: `CategoryError`; extend `CategoryRepository`; add `CreateCategory`, `RenameCategory`, `DeleteCategory` + JVM tests (against an extended fake)
 
 ### Checkpoint: Domain
 - [ ] `test` green; domain still free of `android.*` / Room / Compose / `Uri`
 
-### Phase 2: Data and platform
-- [ ] Task 2: `ReceiptFileStore` under `filesDir/receipts/`, streaming copy with the 10 MB cap
-- [ ] Task 3: `FileProvider` manifest entry + `res/xml/file_paths.xml` + Hilt binding
-- [ ] Task 4: `ReceiptFileStore` instrumentation tests
+### Phase 2: Data
+- [ ] Task 4: Extend `ExpenseDao`/`CategoryDao`; `RoomExpenseRepository`/`RoomCategoryRepository` implement the new surface; category delete/create wrapped in `db.withTransaction`
+- [ ] Task 5: Room instrumentation tests for the new queries (range boundaries, reassignment, constraint mapping)
 
-### Checkpoint: Storage
-- [ ] `assembleDebug` green; merged manifest still has no `CAMERA` or media permission
+### Checkpoint: Persistence
+- [ ] `assembleDebug` green
 
-### Phase 3: Log screen
-- [ ] Task 5: `LogUiEvent` channel, receipt state, capture/import/remove/replace in `LogViewModel` + JVM tests
-- [ ] Task 6: Camera and gallery actions, Coil thumbnail, remove control + Compose smoke tests
+### Phase 3: Shared receipt controller
+- [ ] Task 6: Extract `ReceiptAttachmentController`; `LogViewModel` delegates to it; `LogViewModelReceiptTest` slims to a wiring check, exhaustive cases move to a new controller test
+
+### Phase 4: Log — category creation
+- [ ] Task 7: `LogEvent.CreateCategory`, `+` chip, dialog, auto-select on success + JVM/Compose tests
+
+### Phase 5: History
+- [ ] Task 8: `HistoryViewModel`/`UiState`/`Event`, period switching, totals, `HistoryScreen` + JVM/Compose tests
+
+### Phase 6: Expense edit
+- [ ] Task 9: `ExpenseEditViewModel`/`UiState`/`Event` (amount/category/receipt/`occurredAt`, save, delete), route with nav arg, `ExpenseEditScreen` + JVM/Compose tests
+
+### Phase 7: Category management
+- [ ] Task 10: `CategoriesViewModel`, rename/delete dialog reachable from History overflow + JVM/Compose tests
 
 ### Checkpoint: Sprint complete
 - [ ] `lint`, `test`, `assembleDebug` green
-- [ ] Sprint 3 exit criteria checked (device checks still need a human)
+- [ ] Sprint 4 exit criteria checked (device checks still need a human)
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| `TakePicture` returns success but writes nothing | High | Confirm only on `success == true`; treat a zero-length file as a failed capture and delete it |
-| Replace leaks the previous file | High | Confirming a new path deletes the old one in the same state update; JVM test asserts the delete |
-| Picker Uri persisted by accident | High | Only the copied relative path reaches state; the source string is used once and dropped |
-| Coil caches the empty pre-capture file | Med | Thumbnail renders only after success, and every draft is a fresh uuid, so nothing stale can be keyed |
-| `androidTest` cannot run here (no device) | Med | Written and compiled; flagged unverified, same as sprint 2 |
+| Week bounds silently depend on locale after all | High | `PeriodBounds` takes no `Locale` parameter at all — nothing to accidentally read |
+| Reassign-then-delete not atomic, crash leaves orphaned rows | High | Both statements run inside one `db.withTransaction` block |
+| Extracting the receipt controller regresses sprint 3 behavior | High | Controller code is moved, not rewritten; existing `LogViewModelReceiptTest` cases are ported to the controller test unchanged, then a small wiring test replaces them in `LogViewModelTest` |
+| FK `RESTRICT` on `categoryId` blocks the delete before reassignment lands | Med | Reassignment `UPDATE` runs first in the same transaction, so no row still points at the old id when `DELETE` runs |
+| `androidTest` cannot run here (no device/emulator) | Med | Written and compiled; flagged unverified, same as sprints 2–3 |
 
 ## Open Questions
 
-None blocking. The 10 MB cap and reject-over-downscale are implementation choices the sprint left open — say so if you want downscaling instead.
+None blocking. Auto-selecting a freshly created category and appending new categories after `Other` are implementation defaults the sprint left open — say so if you want different behavior.

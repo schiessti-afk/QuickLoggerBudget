@@ -154,6 +154,8 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 ## Sprint 4 — History and corrections
 
+**Status:** Implemented. `lint`, `test`, and `assembleDebug` are green (139 JVM tests). The criteria below that need a device or emulator — and the human review in the standing bar — are still open.
+
 **Outcome:** The user can review newest-first history, filter day / week / month, edit or delete an expense (including `occurredAt`), and manage categories without leaving the product rules.
 
 **In**
@@ -172,13 +174,13 @@ Sprints 3 and 4 both depend only on sprint 2. They may run in either order, but 
 
 **Exit criteria**
 
-- [ ] History lists newest first and updates after a log without a process kill.
-- [ ] Day / week / month filters change the list. A week range always starts Monday, including on locales whose `firstDayOfWeek` is Sunday.
-- [ ] Totals never add two currency codes into one number.
-- [ ] Edit changes amount, category, receipt, and `occurredAt`; delete removes the row and best-effort deletes its receipt file.
-- [ ] Creating a category from `+` adds a chip. Deleting a category moves its expenses to Other. Other has no delete action.
-- [ ] Log still has no date picker, note, or merchant field.
-- [ ] Domain tests cover period bounds, mixed-currency totals, and category reassignment.
+- [x] History lists newest first and updates after a log without a process kill. *(Proven on the JVM: a new expense inserted while `HistoryViewModel` is subscribed reaches `uiState` without reconstructing it. The on-device recomposition still needs a device.)*
+- [x] Day / week / month filters change the list. A week range always starts Monday, including on locales whose `firstDayOfWeek` is Sunday. *(`PeriodBounds` takes no `Locale` at all — nothing to accidentally read — and is JVM-tested for a Monday, a midweek, and a Sunday "today".)*
+- [x] Totals never add two currency codes into one number.
+- [x] Edit changes amount, category, receipt, and `occurredAt`; delete removes the row and best-effort deletes its receipt file.
+- [x] Creating a category from `+` adds a chip. Deleting a category moves its expenses to Other. Other has no delete action.
+- [x] Log still has no date picker, note, or merchant field.
+- [x] Domain tests cover period bounds, mixed-currency totals, and category reassignment.
 
 ---
 

@@ -21,6 +21,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.time.Clock
+import java.time.ZoneId
 import java.util.Locale
 import javax.inject.Singleton
 
@@ -51,6 +52,10 @@ object DatabaseModule {
      */
     @Provides
     fun provideLocale(): Locale = Locale.getDefault()
+
+    /** Unscoped like [provideLocale]: re-read on every access so a timezone change is picked up. */
+    @Provides
+    fun provideZoneId(): ZoneId = ZoneId.systemDefault()
 }
 
 @Module
