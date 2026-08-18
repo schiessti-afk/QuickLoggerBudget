@@ -10,6 +10,8 @@
     <string name="receipt_take_photo">Take photo</string>
     <string name="receipt_choose_image">Choose image</string>
     <string name="receipt_attached">Receipt attached</string>
+    <string name="receipt_view">View receipt</string>
+    <string name="receipt_close">Close receipt</string>
     <string name="receipt_remove">Remove receipt</string>
     <string name="error_receipt_too_large">That image is over 10 MB. Choose a smaller one.</string>
     <string name="error_receipt_unreadable">That image could not be read.</string>

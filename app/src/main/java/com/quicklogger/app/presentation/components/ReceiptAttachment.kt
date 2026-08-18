@@ -1,12 +1,15 @@
 package com.quicklogger.app.presentation.components
 
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
@@ -16,6 +19,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,13 +31,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.quicklogger.app.R
 import java.io.File
 
 /**
- * The optional receipt on the Log screen: two actions when empty, a thumbnail plus a
- * remove control once one is attached.
+ * The optional receipt on Log and expense-edit: two actions when empty, a
+ * thumbnail plus a remove control once one is attached. Tapping the thumbnail
+ * opens an in-app full-size view of the private file (ARCHITECTURE §7.2) —
+ * it does not leave through FileProvider or the gallery.
  *
  * Camera/gallery are generated ink-line glyphs (`ic_action_camera` /
  * `ic_action_gallery`, DESIGN §6) inside 56 dp filled tiles (`surfaceContainer`,
@@ -47,6 +58,8 @@ fun ReceiptAttachment(
     modifier: Modifier = Modifier,
     errorText: String? = null,
 ) {
+    var viewingReceipt by remember { mutableStateOf(false) }
+
     Column(modifier) {
         when {
             isAttaching -> CircularProgressIndicator(Modifier.size(24.dp))
@@ -62,7 +75,10 @@ fun ReceiptAttachment(
                     contentDescription = stringResource(R.string.receipt_attached),
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(MaterialTheme.shapes.small),
+                        .clip(MaterialTheme.shapes.small)
+                        .clickable(
+                            onClickLabel = stringResource(R.string.receipt_view),
+                        ) { viewingReceipt = true },
                     contentScale = ContentScale.Crop,
                 )
                 Text(
@@ -100,6 +116,37 @@ fun ReceiptAttachment(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
+        }
+    }
+
+    if (viewingReceipt && receiptFile != null) {
+        Dialog(
+            onDismissRequest = { viewingReceipt = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize()) {
+                    AsyncImage(
+                        model = Uri.fromFile(receiptFile),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentScale = ContentScale.Fit,
+                    )
+                    IconButton(
+                        onClick = { viewingReceipt = false },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .statusBarsPadding(),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.receipt_close),
+                        )
+                    }
+                }
+            }
         }
     }
 }

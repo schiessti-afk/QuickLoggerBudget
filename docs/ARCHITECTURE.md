@@ -407,7 +407,7 @@ Lifecycle:
 
 1. **Camera.** Create `filesDir/receipts/{uuid}.jpg`, expose it with `FileProvider`, launch `TakePicture(uri)`. On success, keep the file and put the relative name on the in-progress expense. On cancel or failure, delete the empty file.
 2. **Gallery.** `ActivityResultContracts.PickVisualMedia(ImageOnly)` returns a content `Uri`. Copy bytes into `filesDir/receipts/{uuid}.jpg`. Do not persist the picker Uri.
-3. **Display.** Coil loads `File(filesDir, "receipts/$relative")`. Never insert into `MediaStore`.
+3. **Display.** Coil loads `File(filesDir, "receipts/$relative")`. Never insert into `MediaStore`. Tapping the thumbnail opens an in-app full-size view of that same private file. The file does not leave the app (no `ACTION_VIEW`, no gallery).
 4. **Delete expense.** Delete the receipt file in the same transaction/use case as the row. Best-effort file delete after a successful DAO delete; do not fail the whole delete if the file is already gone.
 5. **Replace receipt.** Delete the previous file, then write the new one.
 

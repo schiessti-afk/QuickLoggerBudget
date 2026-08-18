@@ -159,6 +159,24 @@ class LogScreenTest {
     }
 
     @Test
+    fun tappingAnAttachedReceiptOpensAFullSizeView() {
+        setContent(
+            LogUiState(
+                categories = listOf(food),
+                selectedCategoryId = food.id,
+                receiptRelativePath = "abc.jpg",
+            ),
+            receiptFile = File("/does/not/need/to/exist.jpg"),
+        )
+
+        composeRule.onNodeWithContentDescription("Close receipt").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Receipt attached").performClick()
+        composeRule.onNodeWithContentDescription("Close receipt").assertExists()
+        composeRule.onNodeWithContentDescription("Close receipt").performClick()
+        composeRule.onNodeWithContentDescription("Close receipt").assertDoesNotExist()
+    }
+
+    @Test
     fun removingAnAttachedReceiptEmitsRemove() {
         val events = mutableListOf<LogEvent>()
         setContent(

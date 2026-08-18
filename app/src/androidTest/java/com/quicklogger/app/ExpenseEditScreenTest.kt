@@ -27,9 +27,15 @@ class ExpenseEditScreenTest {
     private fun setContent(
         state: ExpenseEditUiState,
         onEvent: (ExpenseEditEvent) -> Unit = {},
+        receiptFile: java.io.File? = null,
     ) = composeRule.setContent {
         QuickLoggerTheme {
-            ExpenseEditScreenContent(uiState = state, onEvent = onEvent, onNavigateUp = {})
+            ExpenseEditScreenContent(
+                uiState = state,
+                onEvent = onEvent,
+                onNavigateUp = {},
+                receiptFile = receiptFile,
+            )
         }
     }
 
@@ -121,5 +127,24 @@ class ExpenseEditScreenTest {
         composeRule.onNodeWithText("Delete").performClick()
 
         assertEquals(listOf(ExpenseEditEvent.Delete), events)
+    }
+
+    @Test
+    fun tappingAnAttachedReceiptOpensAFullSizeView() {
+        setContent(
+            ExpenseEditUiState(
+                isLoading = false,
+                categories = listOf(food),
+                selectedCategoryId = food.id,
+                receiptRelativePath = "abc.jpg",
+            ),
+            receiptFile = java.io.File("/does/not/need/to/exist.jpg"),
+        )
+
+        composeRule.onNodeWithContentDescription("Close receipt").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Receipt attached").performClick()
+        composeRule.onNodeWithContentDescription("Close receipt").assertExists()
+        composeRule.onNodeWithContentDescription("Close receipt").performClick()
+        composeRule.onNodeWithContentDescription("Close receipt").assertDoesNotExist()
     }
 }

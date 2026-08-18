@@ -238,7 +238,7 @@ Status is never carried by color alone (WCAG 2.2 §1.4.1): over budget also chan
 | Save | `Button` (filled, primary) | Disabled when amount empty; `shape = QuickLoggerButtonShape` (12 dp), never the M3 stadium pill |
 | Save & Share | `OutlinedButton` | Same disable rule; primary border, primary label, no fill; same 12 dp shape. Equal-width `Row` with Save |
 | Camera / gallery | Filled `Surface` tiles | 56 dp, `surfaceContainer`, `shapes.medium`; ink glyph; content descriptions required |
-| Receipt thumb | Small rounded image + remove | Coil; private file path; `shapes.small` (8 dp) corners |
+| Receipt thumb | Small rounded image + remove | Coil; private file path; `shapes.small` (8 dp) corners. Tappable; opens an in-app full-size view, not the gallery. |
 | History row | Compact row | Pictogram 20 dp; receipt indicator is Material `photo` |
 | Period | `FilterChip` | Day / week / month; brand seed, not category color |
 | Top bar | `TopAppBar` | Wordmark/glyph 24 dp + title; Dashboard action on Log, back arrow on Dashboard |
